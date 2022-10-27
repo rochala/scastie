@@ -1,10 +1,10 @@
 package com.olegych.scastie.client
 
-import play.api.libs.json._
+import io.circe.generic.semiauto._
+import io.circe._
 
 object ConsoleState {
-  implicit val formatConsoleState: OFormat[ConsoleState] =
-    Json.format[ConsoleState]
+  implicit val consoleStateCodec: Codec[ConsoleState] = deriveCodec[ConsoleState]
 
   def default: ConsoleState = ConsoleState(
     consoleIsOpen = false,

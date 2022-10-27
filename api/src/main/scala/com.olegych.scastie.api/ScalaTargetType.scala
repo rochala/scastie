@@ -1,6 +1,8 @@
 package com.olegych.scastie.api
 
-import play.api.libs.json._
+import io.circe._
+import io.circe.syntax._
+import io.circe.generic.semiauto._
 
 sealed trait ScalaTargetType {
   def defaultScalaTarget: ScalaTarget
@@ -19,31 +21,14 @@ object ScalaTargetType {
     }
   }
 
-  implicit object ScalaTargetTypeFormat extends Format[ScalaTargetType] {
-    def writes(scalaTargetType: ScalaTargetType): JsValue = {
-      JsString(scalaTargetType.toString)
-    }
+  private val values = List(Scala2, Scala3, JS, Native, Typelevel).map(v => (v.toString, v)).toMap
 
-    private val values =
-      List(
-        Scala2,
-        Scala3,
-        JS,
-        Native,
-        Typelevel
-      ).map(v => (v.toString, v)).toMap
+  implicit val decodeProcessOutputType: Decoder[ScalaTargetType] = Decoder[String].emap { field =>
+    values.get(field).toRight(s"Invalid mode: $field")
+  }
 
-    def reads(json: JsValue): JsResult[ScalaTargetType] = {
-      json match {
-        case JsString(tpe) => {
-          values.get(tpe) match {
-            case Some(v) => JsSuccess(v)
-            case _       => JsError(Seq())
-          }
-        }
-        case _ => JsError(Seq())
-      }
-    }
+  implicit val encodeProcessOutputType: Encoder[ScalaTargetType] = Encoder[String].contramap {
+    _.toString
   }
 
   case object Scala2 extends ScalaTargetType {

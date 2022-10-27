@@ -1,11 +1,11 @@
 package com.olegych.scastie.api
 package runtime
 
-import play.api.libs.json.Json
+import io.circe.syntax._
 
 protected[runtime] trait SharedRuntime {
   def write(instrumentations: List[Instrumentation]): String = {
-    if (instrumentations.isEmpty) "" else Json.stringify(Json.toJson(instrumentations))
+    if (instrumentations.isEmpty) "" else instrumentations.asJson.toString
   }
 
   private val maxValueLength = 500

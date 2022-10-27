@@ -7,12 +7,12 @@ import akka.http.scaladsl.server.{Directive1, Route}
 import com.olegych.scastie.api._
 import com.olegych.scastie.web._
 import com.olegych.scastie.web.oauth2._
+import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 
 class ApiRoutes(
     dispatchActor: ActorRef,
     userDirectives: UserDirectives
-)(implicit system: ActorSystem)
-    extends PlayJsonSupport {
+)(implicit system: ActorSystem) extends FailFastCirceSupport {
 
   import system.dispatcher
   import userDirectives.optionalLogin

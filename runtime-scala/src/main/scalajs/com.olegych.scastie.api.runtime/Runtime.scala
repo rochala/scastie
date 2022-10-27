@@ -1,7 +1,7 @@
 package com.olegych.scastie.api
 package runtime
 
-import play.api.libs.json.Json
+import io.circe.syntax._
 
 import org.scalajs.dom.HTMLElement
 
@@ -13,7 +13,7 @@ import scala.reflect.ClassTag
 
 object Runtime extends SharedRuntime {
   def write(in: Either[Option[RuntimeError], List[Instrumentation]]): String = {
-    Json.stringify(Json.toJson(ScalaJsResult(in)))
+    ScalaJsResult(in).asJson.toString
   }
   def render[T](a: T, attach: HTMLElement => UUID)(implicit _ct: ClassTag[T] = null): Render = {
     val ct = Option(_ct)

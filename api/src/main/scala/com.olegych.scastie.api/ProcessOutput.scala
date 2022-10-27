@@ -1,39 +1,30 @@
 package com.olegych.scastie.api
 
-import play.api.libs.json._
+import io.circe._
+import io.circe.syntax._
+import io.circe.generic.semiauto._
 
 trait ProcessOutputType
+
 object ProcessOutputType {
   case object StdOut extends ProcessOutputType
   case object StdErr extends ProcessOutputType
 
-  implicit object ProcessOutputTypeFormat extends Format[ProcessOutputType] {
-    def writes(processOutputType: ProcessOutputType): JsValue = {
-      JsString(processOutputType.toString)
-    }
+  implicit val decodeProcessOutputType: Decoder[ProcessOutputType] = Decoder[String].emap {
+    case "StdOut" => Right(StdOut)
+    case "StdErr" => Right(StdErr)
+    case other => Left(s"Invalid mode: $other")
+  }
 
-    private val values =
-      List(
-        StdOut,
-        StdErr
-      ).map(v => (v.toString, v)).toMap
-
-    def reads(json: JsValue): JsResult[ProcessOutputType] = {
-      json match {
-        case JsString(tpe) => {
-          values.get(tpe) match {
-            case Some(v) => JsSuccess(v)
-            case _       => JsError(Seq())
-          }
-        }
-        case _ => JsError(Seq())
-      }
-    }
+  implicit val encodeProcessOutputType: Encoder[ProcessOutputType] = Encoder[String].contramap {
+    case StdOut => "StdOut"
+    case StdErr => "StdErr"
   }
 }
 
 object ProcessOutput {
-  implicit val formatProcessOutput: OFormat[ProcessOutput] = Json.format[ProcessOutput]
+  implicit val processOutputEncoder: Encoder[ProcessOutput] = deriveEncoder[ProcessOutput]
+  implicit val processOutputDecoder: Decoder[ProcessOutput] = deriveDecoder[ProcessOutput]
 }
 
 case class ProcessOutput(

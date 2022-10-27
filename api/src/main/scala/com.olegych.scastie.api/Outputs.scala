@@ -1,10 +1,10 @@
 package com.olegych.scastie.api
 
-import play.api.libs.json._
+import io.circe._
+import io.circe.generic.semiauto._
 
 object ReleaseOptions {
-  implicit val formatReleaseOptions: OFormat[ReleaseOptions] =
-    Json.format[ReleaseOptions]
+  implicit val releaseOptionsCodec: Codec[ReleaseOptions] = deriveCodec[ReleaseOptions]
 }
 
 case class ReleaseOptions(groupId: String, versions: List[String], version: String)
@@ -12,8 +12,7 @@ case class ReleaseOptions(groupId: String, versions: List[String], version: Stri
 // case class MavenReference(groupId: String, artifactId: String, version: String)
 
 object Outputs {
-  implicit val formatOutputs: OFormat[Outputs] =
-    Json.format[Outputs]
+  implicit val outputsCodec: Codec[Outputs] = deriveCodec[Outputs]
 
   def default: Outputs = Outputs(
     consoleOutputs = Vector(),
@@ -41,8 +40,7 @@ case class Outputs(
 }
 
 object Position {
-  implicit val formatPosition: OFormat[Position] =
-    Json.format[Position]
+  implicit val positionCodec: Codec[Position] = deriveCodec[Position]
 }
 
 case class Position(start: Int, end: Int)

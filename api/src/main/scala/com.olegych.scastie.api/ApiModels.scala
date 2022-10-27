@@ -1,6 +1,7 @@
 package com.olegych.scastie.api
 
-import play.api.libs.json._
+import io.circe._
+import io.circe.generic.semiauto._
 
 case object SbtPing
 case object SbtPong
@@ -8,20 +9,14 @@ case object SbtPong
 case class SbtRunnerConnect(hostname: String, port: Int)
 case object ActorConnected
 
-object SnippetSummary {
-  implicit val formatSnippetSummary: OFormat[SnippetSummary] =
-    Json.format[SnippetSummary]
-}
-
 case class SnippetSummary(
     snippetId: SnippetId,
     summary: String,
     time: Long
 )
 
-object FormatRequest {
-  implicit val formatFormatRequest: OFormat[FormatRequest] =
-    Json.format[FormatRequest]
+object SnippetSummary {
+  implicit val snippetSummaryCodec: Codec[SnippetSummary] = deriveCodec[SnippetSummary]
 }
 
 case class FormatRequest(
@@ -30,52 +25,24 @@ case class FormatRequest(
     scalaTarget: ScalaTarget
 )
 
-object FormatResponse {
-  implicit object FormatResponseFormat extends Format[FormatResponse] {
-    def writes(response: FormatResponse): JsValue = {
-      response.result match {
-        case Left(error) =>
-          JsObject(
-            Seq(
-              "Left" -> JsString(error)
-            )
-          )
-        case Right(formatedCode) =>
-          JsObject(
-            Seq(
-              "Right" -> JsString(formatedCode)
-            )
-          )
-      }
-    }
-
-    def reads(json: JsValue): JsResult[FormatResponse] = {
-      json match {
-        case JsObject(v) =>
-          v.toList match {
-            case List(("Left", JsString(error))) =>
-              JsSuccess(FormatResponse(Left(error)))
-
-            case List(("Right", JsString(formatedCode))) =>
-              JsSuccess(FormatResponse(Right(formatedCode)))
-
-            case _ =>
-              JsError(Seq())
-          }
-
-        case _ =>
-          JsError(Seq())
-      }
-    }
-  }
+object FormatRequest {
+  implicit val formatRequestCodec: Codec[FormatRequest] = deriveCodec[FormatRequest]
 }
+
+object FormatResponse {
+  import io.circe.generic.auto._
+
+  implicit val formatResponseCodec: Codec[FormatResponse] = deriveCodec[FormatResponse]
+}
+
 
 case class FormatResponse(
     result: Either[String, String]
 )
 
 object FetchResult {
-  implicit val formatFetchResult: OFormat[FetchResult] = Json.format[FetchResult]
+  implicit val fetchResultCodec: Codec[FetchResult] = deriveCodec[FetchResult]
+
   def create(inputs: Inputs, progresses: List[SnippetProgress]) = FetchResult(inputs, progresses.sortBy(p => (p.id, p.ts)))
 }
 
@@ -91,8 +58,7 @@ case class FetchScalaSource(snippetId: SnippetId)
 case class FetchResultScalaSource(content: String)
 
 object ScalaDependency {
-  implicit val formatScalaDependency: OFormat[ScalaDependency] =
-    Json.format[ScalaDependency]
+  implicit val scalaDependencyCodec: Codec[ScalaDependency] = deriveCodec[ScalaDependency]
 }
 
 case class ScalaDependency(
@@ -109,8 +75,7 @@ case class ScalaDependency(
 }
 
 object Project {
-  implicit val formatProject: OFormat[Project] =
-    Json.format[Project]
+  implicit val projectCodec: Codec[Project] = deriveCodec[Project]
 }
 
 case class Project(

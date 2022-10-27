@@ -6,7 +6,10 @@ import com.olegych.scastie.api._
 import com.olegych.scastie.instrumentation.Instrument
 import com.olegych.scastie.sbt.SbtProcess._
 import org.slf4j.LoggerFactory
-import play.api.libs.json._
+import io.circe.generic.semiauto._
+import io.circe.parser._
+import io.circe.syntax._
+import io.circe._
 
 import scala.util.control.NonFatal
 
@@ -93,8 +96,7 @@ class OutputExtractor(getScalaJsContent: () => Option[String],
     )
   }
 
-  private implicit val formatSourceMap: OFormat[SourceMap] =
-    Json.format[SourceMap]
+  private implicit val sourceMapCodec: Codec[SourceMap] = deriveCodec[SourceMap]
 
   private case class SourceMap(
       version: Int,
@@ -108,9 +110,8 @@ class OutputExtractor(getScalaJsContent: () => Option[String],
   private def remapSourceMap(
       snippetId: SnippetId
   )(sourceMapRaw: String): String = {
-    Json
-      .fromJson[SourceMap](Json.parse(sourceMapRaw))
-      .asOpt
+    parse(sourceMapRaw)
+      .flatMap(_.as[SourceMap])
       .map { sourceMap =>
         val sourceMap0 =
           sourceMap.copy(
@@ -126,7 +127,7 @@ class OutputExtractor(getScalaJsContent: () => Option[String],
             )
           )
 
-        Json.prettyPrint(Json.toJson(sourceMap0))
+        sourceMap0.asJson.spaces2
       }
       .getOrElse(sourceMapRaw)
   }
@@ -161,14 +162,14 @@ class OutputExtractor(getScalaJsContent: () => Option[String],
     }
   }
 
-  private def extract[T: Reads](line: String): Option[T] = {
+  private def extract[T: Decoder](line: String): Option[T] = {
     try {
-      Json.fromJson[T](Json.parse(line)).asOpt
+      parse(line).flatMap(_.as[T]).toOption
     } catch {
       case NonFatal(e) => None
     }
   }
 
-  private implicit val sbtOutputFormat: OFormat[ConsoleOutput.SbtOutput] =
-    ConsoleOutput.ConsoleOutputFormat.formatSbtOutput
+  // private implicit val sbtOutputFormat: Codec[ConsoleOutput.SbtOutput] =
+  //   ConsoleOutput.codec
 }

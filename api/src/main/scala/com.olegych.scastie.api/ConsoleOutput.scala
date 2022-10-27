@@ -1,7 +1,8 @@
 package com.olegych.scastie.api
 
-import play.api.libs.json._
-import play.api.libs.json.OFormat
+import io.circe._
+import io.circe.syntax._
+import io.circe.generic.semiauto._
 
 sealed trait ConsoleOutput {
   def show: String
@@ -20,39 +21,24 @@ object ConsoleOutput {
     def show: String = s"scastie: $line"
   }
 
-  implicit object ConsoleOutputFormat extends Format[ConsoleOutput] {
-    val formatSbtOutput: OFormat[SbtOutput] = Json.format[SbtOutput]
-    private val formatUserOutput = Json.format[UserOutput]
-    private val formatScastieOutput = Json.format[ScastieOutput]
+  implicit val sbtOutputCodec: Codec.AsObject[SbtOutput] = deriveCodec[SbtOutput]
+  implicit val userOutputCodec: Codec.AsObject[UserOutput] = deriveCodec[UserOutput]
+  implicit val scastieOutputCodec: Codec.AsObject[ScastieOutput] = deriveCodec[ScastieOutput]
 
-    def writes(output: ConsoleOutput): JsValue = {
-      output match {
-        case sbtOutput: SbtOutput =>
-          formatSbtOutput.writes(sbtOutput) ++ JsObject(Seq("tpe" -> JsString("SbtOutput")))
-        case userOutput: UserOutput =>
-          formatUserOutput.writes(userOutput) ++ JsObject(Seq("tpe" -> JsString("UserOutput")))
-        case scastieOutput: ScastieOutput =>
-          formatScastieOutput.writes(scastieOutput) ++ JsObject(Seq("tpe" -> JsString("ScastieOutput")))
-      }
-    }
+  implicit def codec: Codec[ConsoleOutput] = new Codec[ConsoleOutput] {
+    override def apply(subtype: ConsoleOutput): Json =
+      (subtype match {
+        case sbtOutput: SbtOutput => sbtOutput.asJsonObject
+        case userOutput: UserOutput => userOutput.asJsonObject
+        case scastieOutput: ScastieOutput => scastieOutput.asJsonObject
+      }).+:("tpe" -> subtype.getClass.toString.asJson).asJson
 
-    def reads(json: JsValue): JsResult[ConsoleOutput] = {
-      json match {
-        case obj: JsObject =>
-          val vs = obj.value
-          vs.get("tpe").orElse(vs.get("$type")) match {
-            case Some(tpe) =>
-              tpe match {
-                case JsString("SbtOutput")  => formatSbtOutput.reads(json)
-                case JsString("UserOutput") => formatUserOutput.reads(json)
-                case JsString("ScastieOutput") =>
-                  formatScastieOutput.reads(json)
-                case _ => JsError(Seq())
-              }
-            case None => JsError(Seq())
-          }
-        case _ => JsError(Seq())
-      }
-    }
+    override def apply(c: HCursor): Decoder.Result[ConsoleOutput] =
+      c.downField("tpe").as[String].flatMap {
+        case "SbtOutput" => c.as[SbtOutput]
+        case "UserOutput" => c.as[UserOutput]
+        case "ScastieOutput" => c.as[ScastieOutput]
+        case other => Left(DecodingFailure(other, c.history))
+      }.map(_.asInstanceOf[ConsoleOutput])
   }
 }

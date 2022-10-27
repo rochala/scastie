@@ -165,6 +165,7 @@ lazy val server = project
       "org.apache.commons" % "commons-text" % "1.9",
       "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
       "com.softwaremill.akka-http-session" %% "core" % "0.7.0",
+      "de.heikoseeberger" %% "akka-http-circe" % "1.39.2",
       "ch.megard" %% "akka-http-cors" % "1.1.3",
       akka("cluster"),
       akka("slf4j"),

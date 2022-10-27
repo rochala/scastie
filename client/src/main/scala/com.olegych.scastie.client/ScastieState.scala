@@ -1,12 +1,13 @@
 package com.olegych.scastie.client
 
 import com.olegych.scastie.api._
-import play.api.libs.json._
+import io.circe.syntax._
+import io.circe.generic.semiauto._
+import io.circe.Codec
 import org.scalajs.dom.HTMLElement
 
 object SnippetState {
-  implicit val formatSnippetState: OFormat[SnippetState] =
-    Json.format[SnippetState]
+  implicit val snippetStateCodec: Codec[SnippetState] = deriveCodec[SnippetState]
 }
 
 case class SnippetState(
@@ -45,20 +46,19 @@ object ScastieState {
     )
   }
 
-  implicit val dontSerializeAttachedDoms: Format[Map[String, HTMLElement]] =
+  implicit val scastieStateCodec: Codec[ScastieState] = deriveCodec[ScastieState]
+
+  implicit val dontSerializeAttachedDoms: Codec[Map[String, HTMLElement]] =
     dontSerialize[Map[String, HTMLElement]](Map())
 
-  implicit val dontSerializeStatusState: Format[StatusState] =
+  implicit val dontSerializeStatusState: Codec[StatusState] =
     dontSerialize[StatusState](StatusState.empty)
 
-  implicit val dontSerializeEventStream: Format[EventStream[StatusProgress]] =
+  implicit val dontSerializeEventStream: Codec[EventStream[StatusProgress]] =
     dontSerializeOption[EventStream[StatusProgress]]
 
-  implicit val dontSerializeProgressStream: Format[EventStream[SnippetProgress]] =
+  implicit val dontSerializeProgressStream: Codec[EventStream[SnippetProgress]] =
     dontSerializeOption[EventStream[SnippetProgress]]
-
-  implicit val formatScastieState: OFormat[ScastieState] =
-    Json.format[ScastieState]
 
 }
 
@@ -475,5 +475,5 @@ case class ScastieState(
     )
   }
 
-  override def toString: String = Json.toJson(this).toString()
+  override def toString: String = this.asJson.toString()
 }

@@ -1,6 +1,8 @@
 package com.olegych.scastie.client
 
-import play.api.libs.json.{Json, Reads}
+import io.circe.syntax._
+import io.circe.parser._
+import io.circe._
 
 import org.scalajs.dom.{EventSource, WebSocket, window, CloseEvent, Event, MessageEvent, ErrorEvent}
 
@@ -8,12 +10,12 @@ import japgolly.scalajs.react.{Callback, CallbackTo}
 
 import scala.util.{Failure, Success}
 
-abstract class EventStream[T: Reads](handler: EventStreamHandler[T]) {
+abstract class EventStream[T: Decoder](handler: EventStreamHandler[T]) {
   var closing = false
 
   def onMessage(raw: String): Unit = {
     if (!closing) {
-      Json.fromJson[T](Json.parse(raw)).asOpt.foreach { msg =>
+      parse(raw).flatMap(_.as[T]).toOption.foreach { msg =>
         val shouldClose = handler.onMessage(msg)
         if (shouldClose) {
           close()
@@ -44,7 +46,7 @@ trait EventStreamHandler[T] {
 }
 
 object EventStream {
-  def connect[T: Reads](eventSourceUri: String, websocketUri: String, handler: EventStreamHandler[T]): Callback = {
+  def connect[T: Decoder](eventSourceUri: String, websocketUri: String, handler: EventStreamHandler[T]): Callback = {
 
     def connectEventSource =
       CallbackTo[EventStream[T]](
@@ -75,7 +77,7 @@ object EventStream {
   }
 }
 
-class WebSocketStream[T: Reads](uri: String, handler: EventStreamHandler[T]) extends EventStream[T](handler) {
+class WebSocketStream[T: Decoder](uri: String, handler: EventStreamHandler[T]) extends EventStream[T](handler) {
 
   private def onOpen(e: Event): Unit = {
     onOpen()
@@ -109,7 +111,7 @@ class WebSocketStream[T: Reads](uri: String, handler: EventStreamHandler[T]) ext
 //  socket.onerror = onError2 _
 }
 
-class EventSourceStream[T: Reads](uri: String, handler: EventStreamHandler[T]) extends EventStream[T](handler) {
+class EventSourceStream[T: Decoder](uri: String, handler: EventStreamHandler[T]) extends EventStream[T](handler) {
 
   private def onOpen(e: Event): Unit = {
     onOpen()

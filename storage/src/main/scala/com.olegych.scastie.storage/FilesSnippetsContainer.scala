@@ -10,7 +10,8 @@ import System.{lineSeparator => nl}
 import java.nio.file._
 import java.io.IOException
 
-import play.api.libs.json.Json
+import io.circe.syntax._
+import io.circe.parser._
 
 class FilesSnippetsContainer(root: Path, oldRoot: Path)(val es: ExecutorService) extends SnippetsContainer {
 
@@ -26,7 +27,7 @@ class FilesSnippetsContainer(root: Path, oldRoot: Path)(val es: ExecutorService)
     }
 
     progress.snippetId.foreach(
-      sid => append(outputsFile(sid), Json.stringify(Json.toJson(progress)) + nl)
+      sid => append(outputsFile(sid), progress.asJson.spaces2 + nl)
     )
   }
 
@@ -171,7 +172,7 @@ class FilesSnippetsContainer(root: Path, oldRoot: Path)(val es: ExecutorService)
 
   protected def insert(snippetId: SnippetId, inputs: Inputs): Future[Unit] =
     Future {
-      write(inputsFile(snippetId), Json.prettyPrint(Json.toJson(inputs.withSavedConfig)))
+      write(inputsFile(snippetId), inputs.withSavedConfig.asJson.spaces2)
     }
 
   override protected def hideFromUserProfile(snippetId: SnippetId): Future[Unit] =
@@ -235,10 +236,9 @@ class FilesSnippetsContainer(root: Path, oldRoot: Path)(val es: ExecutorService)
   private def readInputs(snippetId: SnippetId): Option[Inputs] = {
     slurp(inputsFile(snippetId))
       .map(
-        content =>
-          Json
-            .fromJson[Inputs](Json.parse(content))
-            .fold(e => sys.error(e.toString + s" for ${snippetId} $content"), identity)
+        content => parse(content)
+          .flatMap(_.as[Inputs])
+          .fold(e => sys.error(e.toString + s" for ${snippetId} $content"), identity)
       )
   }
 
@@ -248,10 +248,9 @@ class FilesSnippetsContainer(root: Path, oldRoot: Path)(val es: ExecutorService)
     slurp(outputsFile(snippetId)).map {
       _.linesIterator
         .filter(_.nonEmpty)
-        .map { line =>
-          Json
-            .fromJson[SnippetProgress](Json.parse(line))
-            .fold(e => sys.error(e.toString + s" for ${snippetId} $line"), identity)
+        .map { line => parse(line)
+          .flatMap(_.as[SnippetProgress])
+          .fold(e => sys.error(e.toString + s" for ${snippetId} $line"), identity)
         }
         .toList
     }

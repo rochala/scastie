@@ -2,12 +2,13 @@ package com.olegych.scastie.client
 
 import com.olegych.scastie.api.SnippetId
 
-import play.api.libs.json._
+import io.circe._
+import io.circe.generic.semiauto._
 
 import japgolly.scalajs.react._
 
 object ModalState {
-  implicit val formatModalState: OFormat[ModalState] = Json.format[ModalState]
+  implicit val modalStateCodec: Codec[ModalState] = deriveCodec[ModalState]
 
   def allClosed: ModalState = ModalState(
     isHelpModalClosed = true,

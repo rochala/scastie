@@ -1,5 +1,8 @@
 package com.olegych.scastie.api
 
+import io.circe._
+import io.circe.syntax._
+import io.circe.generic.semiauto._
 import com.olegych.scastie.buildinfo.BuildInfo
 
 sealed trait ScalaTarget {
@@ -36,66 +39,34 @@ sealed trait ScalaTarget {
   }
 }
 
+
 object ScalaTarget {
-  import play.api.libs.json._
 
-  implicit object ScalaTargetFormat extends Format[ScalaTarget] {
-    private val formatJvm = Json.format[Jvm]
-    private val formatJs = Json.format[Js]
-    private val formatTypelevel = Json.format[Typelevel]
-    private val formatNative = Json.format[Native]
-    private val formatScala3: OFormat[Scala3] = {
-      // Scala3.dottyVersion has been renamed to Scala3.scalaVersion
-      // so we use the default write
-      // But when reading we check dotty version if scalaVersion is not defined
-      val reads = new Reads[Scala3] {
-        override def reads(json: JsValue): JsResult[Scala3] = json match {
-          case obj: JsObject =>
-            val dict = obj.value
-            dict.get("scalaVersion").orElse(dict.get("dottyVersion")) match {
-              case Some(JsString(ver)) => JsSuccess(Scala3(ver))
-              case _                   => JsError(Seq())
-            }
-          case _ => JsError(Seq())
-        }
-      }
-      OFormat(reads, Json.writes[Scala3])
-    }
+  implicit val jvmCodec: Codec.AsObject[Jvm] = deriveCodec[Jvm]
+  implicit val jsCodec: Codec.AsObject[Js] = deriveCodec[Js]
+  implicit val typeLevelCodec: Codec.AsObject[Typelevel] = deriveCodec[Typelevel]
+  implicit val nativeCodec: Codec.AsObject[Native] = deriveCodec[Native]
+  implicit val scala3Encoder: Encoder.AsObject[Scala3] = deriveEncoder[Scala3]
 
-    def writes(target: ScalaTarget): JsValue = {
-      target match {
-        case jvm: Jvm =>
-          formatJvm.writes(jvm) ++ JsObject(Seq("tpe" -> JsString("Jvm")))
-        case js: Js =>
-          formatJs.writes(js) ++ JsObject(Seq("tpe" -> JsString("Js")))
-        case typelevel: Typelevel =>
-          formatTypelevel.writes(typelevel) ++ JsObject(Seq("tpe" -> JsString("Typelevel")))
-        case native: Native =>
-          formatNative.writes(native) ++ JsObject(Seq("tpe" -> JsString("Native")))
-        case dotty: Scala3 =>
-          formatScala3.writes(dotty) ++ JsObject(Seq("tpe" -> JsString("Scala3")))
-      }
-    }
+  implicit def codec: Codec[ScalaTarget] = new Codec[ScalaTarget] {
+    override def apply(subtype: ScalaTarget): Json =
+      (subtype match {
+        case jvm: Jvm => jvm.asJsonObject
+        case js: Js => js.asJsonObject
+        case typeLevel: Typelevel => typeLevel.asJsonObject
+        case native: Native => native.asJsonObject
+        case scala3: Scala3 => scala3.asJsonObject
+      }).+:("tpe" -> subtype.getClass.getName.toString.asJson).asJson
 
-    def reads(json: JsValue): JsResult[ScalaTarget] = {
-      json match {
-        case obj: JsObject =>
-          val vs = obj.value
-          vs.get("tpe").orElse(vs.get("$type")) match {
-            case Some(JsString(tpe)) =>
-              tpe match {
-                case "Jvm"              => formatJvm.reads(json)
-                case "Js"               => formatJs.reads(json)
-                case "Typelevel"        => formatTypelevel.reads(json)
-                case "Native"           => formatNative.reads(json)
-                case "Scala3" | "Dotty" => formatScala3.reads(json)
-                case _                  => JsError(Seq())
-              }
-            case _ => JsError(Seq())
-          }
-        case _ => JsError(Seq())
-      }
-    }
+    override def apply(c: HCursor): Decoder.Result[ScalaTarget] =
+      c.downField("tpe").as[String].flatMap {
+        case "Jvm"              => c.as[Jvm]
+        case "Js"               => c.as[Js]
+        case "Typelevel"        => c.as[Typelevel]
+        case "Native"           => c.as[Native]
+        case "Scala3" | "Dotty" => c.as[Scala3]
+        case other => Left(DecodingFailure(other, c.history))
+    }.map(_.asInstanceOf[ScalaTarget])
   }
 
   private def runtimeDependencyFrom(target: ScalaTarget): Option[ScalaDependency] = Some(
@@ -265,6 +236,14 @@ object ScalaTarget {
   }
 
   object Scala3 {
+    implicit val scala3Decoder: Decoder[Scala3] = new Decoder[Scala3] {
+      final def apply(c: HCursor): Decoder.Result[Scala3] =
+        ((c.downField("scalaVersion").as[String]) match {
+          case Left(_) => (c.downField("dottyVersion").as[String])
+          case right => right
+        }).map(Scala3(_))
+    }
+
     def default: ScalaTarget = Scala3(BuildInfo.stable3)
 
     def defaultCode: String =

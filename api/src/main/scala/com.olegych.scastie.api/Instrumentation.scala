@@ -1,45 +1,35 @@
 package com.olegych.scastie.api
 
-import play.api.libs.json._
+import io.circe._
+import io.circe.syntax._
+import io.circe.generic.semiauto._
+
 
 object Render {
-  implicit object RenderFormat extends Format[Render] {
-    private val formatValue = Json.format[Value]
-    private val formatHtml = Json.format[Html]
-    private val formatAttachedDom = Json.format[AttachedDom]
 
-    def writes(render: Render): JsValue = {
-      render match {
-        case v: Value =>
-          formatValue.writes(v) ++ JsObject(Seq("tpe" -> JsString("Value")))
-        case h: Html =>
-          formatHtml.writes(h) ++ JsObject(Seq("tpe" -> JsString("Html")))
-        case a: AttachedDom =>
-          formatAttachedDom.writes(a) ++ JsObject(Seq("tpe" -> JsString("AttachedDom")))
-      }
-    }
+  implicit val valueCodec: Codec.AsObject[Value] = deriveCodec[Value]
+  implicit val htmlCodec: Codec.AsObject[Html] = deriveCodec[Html]
+  implicit val attachedDomCodec: Codec.AsObject[AttachedDom] = deriveCodec[AttachedDom]
 
-    def reads(json: JsValue): JsResult[Render] = {
-      json match {
-        case obj: JsObject =>
-          val vs = obj.value
-          vs.get("tpe").orElse(vs.get("$type")) match {
-            case Some(tpe) =>
-              tpe match {
-                case JsString("Value")       => formatValue.reads(json)
-                case JsString("Html")        => formatHtml.reads(json)
-                case JsString("AttachedDom") => formatAttachedDom.reads(json)
-                case _                       => JsError(Seq())
-              }
-            case None => JsError(Seq())
-          }
-        case _ => JsError(Seq())
-      }
-    }
+  implicit def codec: Codec[Render] = new Codec[Render] {
+    override def apply(subtype: Render): Json =
+      (subtype match {
+        case value: Value => value.asJsonObject
+        case html: Html => html.asJsonObject
+        case attachedDom: AttachedDom => attachedDom.asJsonObject
+      }).+:("tpe" -> subtype.getClass.getName.asJson).asJson
+
+    override def apply(c: HCursor): Decoder.Result[Render] = c.downField("tpe").as[String].flatMap {
+      case "Value" => c.as[Value]
+      case "Html" => c.as[Html]
+      case "AttachedDom" => c.as[AttachedDom]
+      case other => Left(DecodingFailure(other, c.history))
+    }.map(_.asInstanceOf[Render])
   }
 }
 
 sealed trait Render
+
 case class Value(v: String, className: String) extends Render
 case class Html(a: String, folded: Boolean = false) extends Render {
   def stripMargin: Html = copy(a = a.stripMargin)
@@ -51,8 +41,9 @@ case class AttachedDom(uuid: String, folded: Boolean = false) extends Render {
 
 object Instrumentation {
   val instrumentedObject = "Playground"
-  implicit val formatInstrumentation: OFormat[Instrumentation] =
-    Json.format[Instrumentation]
+
+  implicit val instrumentationEncoder: Encoder[Instrumentation] = deriveEncoder[Instrumentation]
+  implicit val instrumentationDecoder: Decoder[Instrumentation] = deriveDecoder[Instrumentation]
 }
 
 case class Instrumentation(

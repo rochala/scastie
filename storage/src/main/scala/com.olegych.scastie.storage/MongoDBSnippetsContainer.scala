@@ -5,7 +5,10 @@ import org.mongodb.scala._
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.Updates._
 import org.mongodb.scala.model._
-import play.api.libs.json._
+import io.circe.syntax._
+import io.circe.parser._
+import io.circe.generic.semiauto._
+import io.circe._
 
 import java.lang.System.{lineSeparator => nl}
 import scala.concurrent.ExecutionContext
@@ -24,7 +27,7 @@ case class ShortMongoSnippet(
 ) extends BaseMongoSnippet
 
 object ShortMongoSnippet {
-  implicit val formatShortMongoSnippet: OFormat[ShortMongoSnippet] = Json.format[ShortMongoSnippet]
+  implicit val shortMongoSnippetCodec: Codec[ShortMongoSnippet] = deriveCodec[ShortMongoSnippet]
 }
 
 case class MongoSnippet(
@@ -42,7 +45,7 @@ case class MongoSnippet(
 }
 
 object MongoSnippet {
-  implicit val formatMongoSnippet: OFormat[MongoSnippet] = Json.format[MongoSnippet]
+  implicit val mongoSnippetCodec: Codec[MongoSnippet] = deriveCodec[MongoSnippet]
 }
 
 class MongoDBSnippetsContainer(_ec: ExecutionContext) extends SnippetsContainer {
@@ -53,13 +56,13 @@ class MongoDBSnippetsContainer(_ec: ExecutionContext) extends SnippetsContainer 
   // TODO: Change client logic to use provided codecs
   // MongoDB client provides its own BSON converter, but would require changes in API.
   // Instead we reuse our JSON codecs and create BSON from the generated JSON.
-  private def toBson[T](obj: T)(implicit writes: Writes[T]): Document = {
-    val json = Json.toJson(obj).toString
+  private def toBson[T](obj: T)(implicit writes: Encoder[T]): Document = {
+    val json = obj.asJson.toString
     Document.apply(json)
   }
 
-  private def fromBson[T](obj: Document)(implicit reads: Reads[T]): Option[T] = {
-    Json.parse(obj.toJson()).asOpt[T]
+  private def fromBson[T](obj: Document)(implicit reads: Decoder[T]): Option[T] = {
+    parse(obj.toJson()).flatMap(_.as[T]).toOption
   }
 
   private val client: MongoClient = MongoClient(mongoUri)

@@ -9,7 +9,8 @@ import com.olegych.scastie.api.User
 import com.softwaremill.session._
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.Logger
-import play.api.libs.json.Json
+import io.circe.syntax._
+import io.circe.parser._
 
 import scala.collection.concurrent.TrieMap
 import scala.jdk.CollectionConverters._
@@ -46,16 +47,7 @@ class GithubUserSession(system: ActorSystem) {
   private def readSessionsFile(): Vector[(UUID, User)] = {
     if (Files.exists(usersSessions)) {
       val content = Files.readAllLines(usersSessions).toArray.mkString(nl)
-      try {
-        Json
-          .fromJson[Vector[(UUID, User)]](Json.parse(content))
-          .asOpt
-          .getOrElse(Vector())
-      } catch {
-        case NonFatal(e) =>
-          logger.error("failed to read sessions", e)
-          Vector()
-      }
+        parse(content).flatMap(_.as[Vector[(UUID, User)]]).getOrElse(Vector())
     } else {
       Vector()
     }
@@ -73,7 +65,7 @@ class GithubUserSession(system: ActorSystem) {
 
     Files.write(
       usersSessions,
-      Json.prettyPrint(Json.toJson(sessions0)).getBytes,
+      sessions0.asJson.spaces2.getBytes,
       StandardOpenOption.CREATE
     )
 

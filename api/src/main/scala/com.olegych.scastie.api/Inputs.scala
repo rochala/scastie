@@ -1,6 +1,7 @@
 package com.olegych.scastie.api
 
-import play.api.libs.json._
+import io.circe._
+import io.circe.generic.semiauto._
 import com.olegych.scastie.buildinfo.BuildInfo
 
 import System.{lineSeparator => nl}
@@ -13,7 +14,7 @@ sealed trait BaseInputs {
 case class ShortInputs(code: String, target: ScalaTarget) extends BaseInputs
 
 object ShortInputs {
-  implicit val formatShortInputs: OFormat[ShortInputs] = Json.format[ShortInputs]
+  implicit val shortInputsCodec: Codec[ShortInputs] = deriveCodec[ShortInputs]
 }
 
 object Inputs {
@@ -38,24 +39,16 @@ object Inputs {
     forked = None
   )
 
-  implicit val formatInputs: OFormat[Inputs] = {
-    val f = Json.format[Inputs]
-    OFormat(
-      Reads { v =>
-        f.reads(
-          v.asOpt[JsObject]
-            .fold(Json.obj())(
-              _ ++ Json.obj(
-                "_isWorksheetMode" -> (v \ "isWorksheetMode")
-                  .asOpt[Boolean]
-                  .orElse((v \ "_isWorksheetMode").asOpt[Boolean])
-              )
-            )
-        )
-      },
-      f
-    )
-  }
+  implicit val inputsEncoder: Encoder[Inputs] = deriveEncoder[Inputs]
+  implicit val inputsDecoder: Decoder[Inputs] = deriveDecoder[Inputs].prepare { (c: ACursor) => {
+    c.withFocus(json => {
+      json.mapObject(maybeJsonObject => {
+        maybeJsonObject.apply("_isWorksheetMode").orElse(maybeJsonObject("isWorksheetMode")).fold(maybeJsonObject)(isWorksheetMode => {
+          maybeJsonObject.add("_isWorksheetMode", isWorksheetMode)
+        })
+      })
+    })
+  }}
 }
 
 case class Inputs(
@@ -214,8 +207,7 @@ case class Inputs(
 }
 
 object EditInputs {
-  implicit val formatEditInputs: OFormat[EditInputs] =
-    Json.format[EditInputs]
+  implicit val editInputsCodec: Codec[EditInputs] = deriveCodec[EditInputs]
 }
 
 case class EditInputs(snippetId: SnippetId, inputs: Inputs)

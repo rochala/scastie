@@ -1,12 +1,11 @@
 package com.olegych.scastie.api
 
-import play.api.libs.json._
+import io.circe._
+import io.circe.generic.semiauto._
 
-import play.api.libs.json.OFormat
 
 object TaskId {
-  implicit val formatSbtRunTaskId: OFormat[TaskId] =
-    Json.format[TaskId]
+  implicit val taskIdCodec: Codec[TaskId] = deriveCodec[TaskId]
 }
 
 case class TaskId(snippetId: SnippetId)

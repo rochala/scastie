@@ -1,6 +1,7 @@
 package com.olegych.scastie.api
 
-import play.api.libs.json._
+import io.circe._
+import io.circe.generic.semiauto._
 
 object User {
   // low tech solution
@@ -13,23 +14,22 @@ object User {
     "olafurpg",
     "OlegYch"
   )
-  implicit val formatUser: OFormat[User] =
-    Json.format[User]
+
+  implicit val userCodec: Codec[User] = deriveCodec[User]
 }
 case class User(login: String, name: Option[String], avatar_url: String) {
   def isAdmin: Boolean = User.admins.contains(login)
 }
 
 object SnippetUserPart {
-  implicit val formatSnippetUserPart: OFormat[SnippetUserPart] =
-    Json.format[SnippetUserPart]
+  implicit val snippetUserPartCodec: Codec[SnippetUserPart] = deriveCodec[SnippetUserPart]
 }
 
 case class SnippetUserPart(login: String, update: Int = 0)
 
 object SnippetId {
-  implicit val formatSnippetId: OFormat[SnippetId] =
-    Json.format[SnippetId]
+  implicit val snippetIdEncoder: Encoder[SnippetId] = deriveEncoder[SnippetId]
+  implicit val snippetIdDecoder: Decoder[SnippetId] = deriveDecoder[SnippetId]
 }
 
 case class SnippetId(base64UUID: String, user: Option[SnippetUserPart]) {

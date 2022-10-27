@@ -2,7 +2,7 @@ package com.olegych.scastie.sbtscastie
 
 import com.olegych.scastie.api
 
-import play.api.libs.json.Json
+import io.circe.syntax._
 
 import sbt._
 import Keys._
@@ -44,7 +44,7 @@ object CompilerReporter {
         }
         if (problems.nonEmpty) {
           val apiProblems = problems.map(toApi)
-          println(Json.stringify(Json.toJson(apiProblems)))
+          println(apiProblems.asJson.spaces2)
         }
       }
       def problems: Array[Problem] = buffer.toArray

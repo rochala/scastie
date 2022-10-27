@@ -5,7 +5,8 @@ import com.olegych.scastie.client.components._
 import japgolly.scalajs.react._
 import vdom.all._
 import extra.router._
-import play.api.libs.json.Json
+import io.circe.syntax._
+import io.circe.parser._
 
 import java.util.UUID
 
@@ -28,15 +29,15 @@ class Routing(defaultServerUrl: String) {
 
     val inputs = queryToMap.pmap { map =>
       map.get("inputs").flatMap { inputs =>
-        Json
-          .fromJson[Inputs](Json.parse(inputs))
+        parse(inputs)
+          .flatMap(_.as[Inputs])
           .fold({ e =>
             println(s"failed to parse ${inputs}")
             println(e)
             None
           }, inputs => Some(InputsPage(inputs)))
       }
-    }(p => Map("inputs" -> Json.toJson(p.inputs).toString().replace("{", "%7B").replace("}", "%7D")))
+    }(p => Map("inputs" -> p.inputs.asJson.toString().replace("{", "%7B").replace("}", "%7D")))
 
     def parseTryLibrary(map: Map[String, String]) = {
       (

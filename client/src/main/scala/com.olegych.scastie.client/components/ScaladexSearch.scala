@@ -2,7 +2,8 @@ package com.olegych.scastie.client.components
 
 import com.olegych.scastie.api._
 
-import play.api.libs.json.Json
+import io.circe.syntax._
+import io.circe.parser._
 
 import japgolly.scalajs.react._, vdom.all._, extra._
 import japgolly.scalajs.react.component.builder.Lifecycle.RenderScope
@@ -249,7 +250,7 @@ object ScaladexSearch {
               response <- dom.fetch(scaladexApiUrl + "/search" + q)
               text <- response.text()
             } yield {
-              Json.fromJson[List[Project]](Json.parse(text)).asOpt.getOrElse(Nil).map(_ -> t)
+              parse(text).flatMap(_.as[List[Project]]).toOption.getOrElse(Nil).map(_ -> t)
             }
           }
 
@@ -292,7 +293,7 @@ object ScaladexSearch {
         response <- dom.fetch(scaladexApiUrl + "/project" + query)
         text <- response.text()
       } yield {
-        Json.fromJson[ReleaseOptions](Json.parse(text)).asOpt.map { options =>
+        parse(text).flatMap(_.as[ReleaseOptions]).toOption.map { options =>
           {
             Selected(
               project = project,

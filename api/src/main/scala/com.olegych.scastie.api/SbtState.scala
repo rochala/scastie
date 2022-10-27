@@ -1,6 +1,9 @@
 package com.olegych.scastie.api
 
-import play.api.libs.json._
+import io.circe._
+import io.circe.syntax._
+import io.circe.generic.semiauto._
+
 
 sealed trait SbtState extends ServerState
 object SbtState {
@@ -14,27 +17,16 @@ object SbtState {
     def isReady: Boolean = false
   }
 
-  implicit object SbtStateFormat extends Format[SbtState] {
-    def writes(state: SbtState): JsValue = {
-      JsString(state.toString)
-    }
 
-    private val values =
-      List(
-        Unknown,
-        Disconnected
-      ).map(v => (v.toString, v)).toMap
-
-    def reads(json: JsValue): JsResult[SbtState] = {
-      json match {
-        case JsString(tpe) => {
-          values.get(tpe) match {
-            case Some(v) => JsSuccess(v)
-            case _       => JsError(Seq())
-          }
-        }
-        case _ => JsError(Seq())
-      }
-    }
+  implicit val sbtStateDecoder: Decoder[SbtState] = Decoder[String].emap {
+    case "Unknown" => Right(Unknown)
+    case "Disconnected" => Right(Disconnected)
+    case other => Left(s"Invalid mode: $other")
   }
+
+  implicit val sbtStateEncoder: Encoder[SbtState] = Encoder[String].contramap {
+    case Unknown => Unknown.toString
+    case Disconnected => Disconnected.toString
+  }
+
 }

@@ -1,7 +1,8 @@
 package com.olegych.scastie.api
 
 import java.io.{PrintWriter, StringWriter}
-import play.api.libs.json._
+import io.circe._
+import io.circe.generic.semiauto._
 
 case class RuntimeError(
     message: String,
@@ -10,8 +11,8 @@ case class RuntimeError(
 )
 
 object RuntimeError {
-  implicit val formatRuntimeError: OFormat[RuntimeError] =
-    Json.format[RuntimeError]
+  implicit val runtimeErrorEncoder: Encoder[RuntimeError] = deriveEncoder[RuntimeError]
+  implicit val runtimeErrorDecoder: Decoder[RuntimeError] = deriveDecoder[RuntimeError]
 
   def wrap[T](in: => T): Either[Option[RuntimeError], T] = {
     try {
@@ -53,8 +54,8 @@ object RuntimeError {
 }
 
 object RuntimeErrorWrap {
-  implicit val formatRuntimeErrorWrap: OFormat[RuntimeErrorWrap] =
-    Json.format[RuntimeErrorWrap]
+  implicit val runtimeErrorWrapEncoder: Encoder[RuntimeErrorWrap] = deriveEncoder[RuntimeErrorWrap]
+  implicit val runtimeErrorWrapDecoder: Decoder[RuntimeErrorWrap] = deriveDecoder[RuntimeErrorWrap]
 }
 
 case class RuntimeErrorWrap(error: Option[RuntimeError])

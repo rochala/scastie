@@ -11,7 +11,8 @@ import org.scalajs.dom.HTMLElement
 
 import japgolly.scalajs.react._
 
-import play.api.libs.json.Json
+import io.circe.syntax._
+import io.circe.parser._
 
 import java.util.UUID
 
@@ -52,11 +53,7 @@ object Global {
   def signal(instrumentationsRaw: String, attachedDoms: js.Array[HTMLElement], rawId: String): Unit = {
 
     val result =
-      Json
-        .fromJson[ScalaJsResult](
-          Json.parse(instrumentationsRaw)
-        )
-        .asOpt
+      parse(instrumentationsRaw).flatMap(_.as[ScalaJsResult]).toOption
 
     val (instr, runtimeError) = result.map(_.in) match {
       case Some(Left(maybeRuntimeError)) => (Nil, maybeRuntimeError)

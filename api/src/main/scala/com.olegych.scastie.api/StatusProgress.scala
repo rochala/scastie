@@ -1,10 +1,11 @@
 package com.olegych.scastie.api
 
-import play.api.libs.json._
+import io.circe._
+import io.circe.syntax._
+import io.circe.generic.semiauto._
 
 object SbtRunnerState {
-  implicit val formatSbtRunnerState: OFormat[SbtRunnerState] =
-    Json.format[SbtRunnerState]
+  implicit val sbtRunnerStateCodec: Codec[SbtRunnerState] = deriveCodec[SbtRunnerState]
 }
 
 case class SbtRunnerState(
@@ -13,39 +14,24 @@ case class SbtRunnerState(
     sbtState: SbtState
 )
 sealed trait StatusProgress
+
 object StatusProgress {
-  implicit object StatusProgressFormat extends Format[StatusProgress] {
-    private val formatSbt = Json.format[StatusProgress.Sbt]
+  implicit val sbtCodec: Codec.AsObject[StatusProgress.Sbt] = deriveCodec[StatusProgress.Sbt]
 
-    def writes(status: StatusProgress): JsValue = {
 
-      status match {
-        case StatusProgress.KeepAlive =>
-          JsObject(Seq("tpe" -> JsString("StatusProgress.KeepAlive")))
-        case runners: StatusProgress.Sbt =>
-          formatSbt.writes(runners) ++ JsObject(Seq("tpe" -> JsString("StatusProgress.Sbt")))
-      }
-    }
+  implicit def codec: Codec[StatusProgress] = new Codec[StatusProgress] {
+    override def apply(subtype: StatusProgress): Json =
+      (subtype match {
+        case KeepAlive => ("tpe" -> "StatusProgress.KeepAlive").asJson
+        case sbt: StatusProgress.Sbt => sbt.asJsonObject.+:("tpe" -> "StatusProgress.Sbt".asJson).asJson
+      })
 
-    def reads(json: JsValue): JsResult[StatusProgress] = {
-      json match {
-        case obj: JsObject =>
-          obj.value.get("tpe").orElse(obj.value.get("$type")) match {
-            case Some(tpe) =>
-              tpe match {
-                case JsString("StatusProgress.KeepAlive") =>
-                  JsSuccess(StatusProgress.KeepAlive)
-
-                case JsString("StatusProgress.Sbt") =>
-                  formatSbt.reads(json)
-
-                case _ => JsError(Seq())
-              }
-            case None => JsError(Seq())
-          }
-        case _ => JsError(Seq())
-      }
-    }
+    override def apply(c: HCursor): Decoder.Result[StatusProgress] =
+      c.downField("tpe").as[String].flatMap {
+        case "StatusProgress.KeepAlive" => Right(KeepAlive)
+        case "StatusProgress.Sbt" => c.as[StatusProgress.Sbt]
+        case other => Left(DecodingFailure(other, c.history))
+    }.map(_.asInstanceOf[StatusProgress])
   }
 
   case object KeepAlive extends StatusProgress
