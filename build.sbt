@@ -129,9 +129,10 @@ lazy val metalsRunner = project
       "org.http4s"          %% "http4s-dsl"          % "0.23.17",
       "org.http4s"          %% "http4s-circe"        % "0.23.17",
       "io.circe"            %% "circe-generic"       % "0.14.3",
-      "org.scalameta"       %% "munit"               % "0.7.29" % Test,
       "com.evolutiongaming" %% "scache"              % "4.2.3",
-      "org.typelevel"       %% "munit-cats-effect-3" % "1.0.7"  % Test
+      "org.scalameta"       %% "munit"               % "0.7.29" % Test,
+      "org.typelevel"       %% "munit-cats-effect-3" % "1.0.7"  % Test,
+      "org.typelevel"       %% "cats-effect-testkit" % "3.4.5"  % Test
     )
   )
   .enablePlugins(JavaServerAppPackaging, sbtdocker.DockerPlugin)
@@ -190,6 +191,7 @@ lazy val server = project
   .settings(baseNoCrossSettings)
   .settings(loggingAndTest)
   .settings(
+    javacOptions ++= Seq("-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=127.0.0.1:8000"),
     watchSources ++= (client / watchSources).value,
     Compile / products += (client / baseDirectory).value / "dist",
     fullLinkJS / reStart   := reStart.dependsOn(client / Compile / fullLinkJS / yarnBuild).evaluated,
@@ -268,6 +270,13 @@ lazy val client = project
   )
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(api.js(ScalaVersions.js))
+
+lazy val migrationScripts = project
+  .in(file("migration-scripts"))
+  .settings(
+    scalaVersion := "3.2.2"
+  )
+  .dependsOn(storage)
 
 lazy val instrumentation = project
   .settings(baseNoCrossSettings)

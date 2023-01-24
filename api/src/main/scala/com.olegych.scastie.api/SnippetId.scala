@@ -5,6 +5,7 @@ import play.api.libs.json._
 object User {
   // low tech solution
   val admins: Set[String] = Set(
+    "rochala",
     "Duhemm",
     "heathermiller",
     "julienrf",

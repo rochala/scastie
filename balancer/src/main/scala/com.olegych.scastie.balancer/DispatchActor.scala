@@ -111,7 +111,8 @@ class DispatchActor(progressActor: ActorRef, statusActor: ActorRef)
   private val container =
     containerType match {
       case "memory" => new InMemorySnippetsContainer
-      case "mongo"  => new MongoDBSnippetsContainer(ExecutionContext.fromExecutor(Executors.newWorkStealingPool()))
+      case "mongo"  => new MongoDBContainer(ExecutionContext.fromExecutor(Executors.newWorkStealingPool()))
+      case "mongo-local"  => new MongoDBContainer(ExecutionContext.fromExecutor(Executors.newWorkStealingPool()), defaultConfig = true)
       case "files" =>
         new FilesSnippetsContainer(
           Paths.get(config.getString("snippets-dir")),
