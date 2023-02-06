@@ -224,7 +224,7 @@ class Deployment(
     val uri = s"${config.userName}@${config.runnersHostname}"
     val remoteScriptPath = scriptPath.getFileName().toString()
     val exitCode = Process(s"ssh $uri 'cat $remoteScriptPath'") #| ("diff - $scriptPath") ! logger
-    println(s"EXIT CODE $exitCode")
+    logger.info(s"EXIT CODE $exitCode")
     exitCode == 0
   }
 
