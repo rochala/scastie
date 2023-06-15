@@ -14,25 +14,23 @@ case class User(login: String, name: Option[String], avatar_url: String) {
 }
 
 object SnippetUserPart {
-  implicit val formatSnippetUserPart: OFormat[SnippetUserPart] =
-    Json.format[SnippetUserPart]
+  implicit val formatSnippetUserPart: OFormat[SnippetUserPart] = Json.format[SnippetUserPart]
 }
 
 case class SnippetUserPart(login: String, update: Int = 0)
 
 object SnippetId {
-  implicit val formatSnippetId: OFormat[SnippetId] =
-    Json.format[SnippetId]
+  implicit val formatSnippetId: OFormat[SnippetId] = Json.format[SnippetId]
 
   def apply(user: String, uuid: String, rev: Int): SnippetId = SnippetId(uuid, Some(SnippetUserPart(user, rev)))
 }
 
 case class SnippetId(base64UUID: String, user: Option[SnippetUserPart]) {
+
   def isOwnedBy(user2: Option[User]): Boolean = {
     (user, user2) match {
-      case (Some(SnippetUserPart(snippetLogin, _)), Some(User(userLogin, _, _))) =>
-        snippetLogin == userLogin
-      case _ => false
+      case (Some(SnippetUserPart(snippetLogin, _)), Some(User(userLogin, _, _))) => snippetLogin == userLogin
+      case _                                                                     => false
     }
   }
 
@@ -40,9 +38,15 @@ case class SnippetId(base64UUID: String, user: Option[SnippetUserPart]) {
 
   def url: String = {
     this match {
-      case SnippetId(uuid, None) => uuid
-      case SnippetId(uuid, Some(SnippetUserPart(login, update))) =>
-        s"$login/$uuid/$update"
+      case SnippetId(uuid, None)                                 => uuid
+      case SnippetId(uuid, Some(SnippetUserPart(login, update))) => s"$login/$uuid/$update"
+    }
+  }
+
+  def path: List[String] = {
+    this match {
+      case SnippetId(uuid, None)                                 => List(uuid)
+      case SnippetId(uuid, Some(SnippetUserPart(login, update))) => List(login, uuid, update.toString)
     }
   }
 
@@ -50,4 +54,5 @@ case class SnippetId(base64UUID: String, user: Option[SnippetUserPart]) {
     val middle = url
     s"/api/${Shared.scalaJsHttpPathPrefix}/$middle/$end"
   }
+
 }

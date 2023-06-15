@@ -4,16 +4,18 @@ import scala.concurrent.Future
 
 import scastie.endpoints._
 import scastie.endpoints.ApiEndpoints
+import scastie.server.endpoints._
 import scastie.server.ServerConfig
 import sttp.tapir.redoc.bundle.RedocInterpreter
 
 class DocsRoutes() {
 
-  private val publicEndpoints = FrontPageEndpoints.endpoints ++
-    ApiEndpoints.publicEndpoints ++
-    ProgressEndpoints.endpoints
+  private val publicEndpoints = ApiEndpoints.publicEndpoints ++
+    ProgressEndpoints.endpoints ++
+    FrontPageEndpoints.endpoints
 
   private val allEndpoints = publicEndpoints ++
+    ApiEndpoints.internalEndpoints ++
     DownloadEndpoints.endpoints ++
     StatusEndpoints.endpoints ++
     OAuthEndpoints.endpoints

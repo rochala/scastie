@@ -6,30 +6,34 @@ import akka.actor.{ActorRef, ActorSystem}
 import cats.syntax.all._
 import scastie.endpoints.ApiEndpoints
 import scastie.server.RestApiServer
+import sttp.tapir._
 
 class ApiRoutesImpl(dispatchActor: ActorRef)(implicit system: ActorSystem) {
   import system.dispatcher
   import SessionManager._
 
-  val saveImpl = ApiEndpoints.saveEndpoint.secure
+  val saveImpl = ApiEndpoints.saveEndpoint.optionalSecure
     .serverLogicSuccess(maybeUser => new RestApiServer(dispatchActor, maybeUser).save(_))
 
-  val forkImpl = ApiEndpoints.forkEndpoint.secure
+  val forkImpl = ApiEndpoints.forkEndpoint.optionalSecure
+    .in(clientIp)
     .serverLogic(maybeUser =>
       inputs => {
-        val (clientIP, input) = inputs
-        new RestApiServer(dispatchActor, maybeUser, clientIP).fork(input).map(_.toRight("Failure"))
+        val (input, clientIp) = inputs
+        new RestApiServer(dispatchActor, maybeUser, clientIp).fork(input).map(_.toRight("Failure"))
       }
     )
 
   val deleteImpl = ApiEndpoints.deleteEndpoint.secure
     .serverLogicSuccess(user => new RestApiServer(dispatchActor, Some(user)).delete(_))
 
-  val updateImpl = ApiEndpoints.updateEndpoint.secure
+  val updateImpl = ApiEndpoints.updateEndpoint
+    .in(clientIp)
+    .secure
     .serverLogic(user =>
       inputs => {
-        val (clientIP, editInputs) = inputs
-        new RestApiServer(dispatchActor, Some(user), clientIP).update(editInputs).map(_.toRight("Failure"))
+        val (editInputs, clientIp) = inputs
+        new RestApiServer(dispatchActor, Some(user), clientIp).update(editInputs).map(_.toRight("Failure"))
       }
     )
 

@@ -1,66 +1,53 @@
 package scastie.endpoints
 
-import sttp.tapir._
 import com.olegych.scastie.api._
 import sttp.model.Header
 import sttp.model.MediaType
+import sttp.tapir._
 
+case class SnippetEndpoint[A, E, O, R](underlying: Endpoint[A, SnippetId, E, O, R]) {
+
+  def map[NA, NE, NO, NR](
+    f: Endpoint[A, SnippetId, E, O, R] => Endpoint[NA, SnippetId, NE, NO, NR]
+  ): SnippetEndpoint[NA, NE, NO, NR] = {
+    SnippetEndpoint(f(underlying))
+  }
+
+  def documentationEndpoints: List[AnyEndpoint] = List(
+    underlying.in(path[String]("snippetId")),
+    underlying.in(path[String]("username")).in(path[String]("snippetId")),
+    underlying.in(path[String]("username")).in(path[String]("snippetId")).in(path[String]("revision"))
+  )
+
+}
 
 object SnippetMatcher {
   import SnippetIdUtils._
 
-  def getApiSnippetEndpoints[SecurityInput, Output](
-    baseEndpoint: Endpoint[SecurityInput, Unit, Output, Unit, Any],
-    endpointBase: String = "Get"
-  ): List[Endpoint[SecurityInput, SnippetId, Output, Unit, Any]] = {
-    val userLatestSnippetEndpoint = baseEndpoint.get.in(path[String]("user") / path[String]("snippetId"))
-        .mapIn(SnippetIdUtils.toSnippetId(_))(
-          snippetId => (snippetId.user.fold("")(_.login), snippetId.base64UUID))
-        .name(s"$endpointBase user latest snippet")
-
-    val userSnippetEndpoint = baseEndpoint.get.in(path[String]("user") / path[String]("snippetId") / path[Int]("rev"))
-        .mapIn(SnippetIdUtils.toSnippetId(_))(
-          snippetId => (snippetId.user.fold("")(_.login), snippetId.base64UUID, snippetId.user.fold(0)(_.update)))
-        .name(s"$endpointBase specific user snippet revision")
-
-    val snippetEndpoint = baseEndpoint.get.in(path[String]("snippetId"))
-        .mapIn(SnippetIdUtils.toSnippetId(_))(
-          snippetId => (snippetId.base64UUID))
-        .name(s"$endpointBase anonymous snippet")
-
-    userLatestSnippetEndpoint :: userSnippetEndpoint :: snippetEndpoint :: Nil
+  def getApiSnippetEndpoint[SecurityInput, Output](
+    baseEndpoint: Endpoint[SecurityInput, Unit, Unit, Output, Any]
+  ): SnippetEndpoint[SecurityInput, Unit, Output, Any] = {
+    SnippetEndpoint(
+      baseEndpoint
+        .in(paths)
+        .mapInDecode(toSnippetId(_))((_.path))
+    )
   }
 
   def getFrontPageSnippetEndpoints(
     baseEndpoint: PublicEndpoint[Unit, Unit, Unit, Any]
-  ): List[PublicEndpoint[MaybeEmbeddedSnippet, Unit, FrontPageSnippet, Any]] = {
-    def addOptionalJSPath(path: String) = s"$path[.js]"
-
+  ): PublicEndpoint[MaybeEmbeddedSnippet, Unit, FrontPageSnippet, Any] = {
     val snippetOutputVariant = oneOf[FrontPageSnippet](
-        oneOfVariant[EmbeddedSnippet](
-          stringBody.map(EmbeddedSnippet(_))(_.content) and header(Header.contentType(MediaType.TextJavascript))
-        ),
-        oneOfVariant[UniversalSnippet](htmlBodyUtf8.map(UniversalSnippet(_))(_.content))
-      )
+      oneOfVariant[EmbeddedSnippet](
+        stringBody.map(EmbeddedSnippet(_))(_.content) and header(Header.contentType(MediaType.TextJavascript))
+      ),
+      oneOfVariant[UniversalSnippet](htmlBodyUtf8.map(UniversalSnippet(_))(_.content))
+    )
 
-    val userLatestSnippetEndpoint = baseEndpoint.get.in(path[String]("user") / path[String](addOptionalJSPath("snippetId")))
-        .mapInDecode(SnippetIdUtils.toMaybeSnippetId(_))(
-          snippetId => (snippetId.user, snippetId.snippetId))
-        .out(snippetOutputVariant)
-        .name("Get latest user snippet")
-
-    val userSnippetEndpoint = baseEndpoint.get.in(path[String]("user") / path[String]("snippetId") / path[String](addOptionalJSPath("rev")))
-        .mapInDecode(SnippetIdUtils.toMaybeSnippetId(_))(
-          snippetId => (snippetId.user, snippetId.snippetId, snippetId.rev))
-        .out(snippetOutputVariant)
-        .name("Get specific user snippet revision")
-
-    val snippetEndpoint = baseEndpoint.get.in(path[String](addOptionalJSPath("snippetId")))
-        .mapInDecode(SnippetIdUtils.toMaybeSnippetId(_))(
-          snippetId => (snippetId.snippetId))
-        .out(snippetOutputVariant)
-        .name("Get anonymous snippet")
-
-    userLatestSnippetEndpoint :: userSnippetEndpoint :: snippetEndpoint :: Nil
+    baseEndpoint
+      .in(paths)
+      .mapInDecode(toMaybeSnippetId(_))((_.path))
+      .out(snippetOutputVariant)
   }
+
 }

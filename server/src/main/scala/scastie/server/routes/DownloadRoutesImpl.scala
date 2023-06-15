@@ -13,12 +13,11 @@ import scastie.endpoints.DownloadEndpoints
 class DownloadRoutesImpl(dispatchActor: ActorRef) {
   implicit val timeout = Timeout(5.seconds)
 
-  val downloadSnippetImpl = DownloadEndpoints.downloadSnippetEndpoint.map { endpoint =>
-    endpoint.serverLogicOption[Future](snippetId =>
+  val downloadSnippetImpl = DownloadEndpoints.downloadSnippetEndpoint.underlying
+    .serverLogicOption[Future](snippetId =>
       (dispatchActor ? DownloadSnippet(snippetId))
         .mapTo[Option[File]]
     )
-  }
 
-  val serverEndpoints = downloadSnippetImpl
+  val serverEndpoints = downloadSnippetImpl :: Nil
 }

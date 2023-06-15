@@ -1,5 +1,4 @@
-package scastie.endpoints
-
+package scastie.server.endpoints
 
 import sttp.tapir._
 import sttp.tapir.json.play._
@@ -7,7 +6,7 @@ import sttp.tapir.generic.auto._
 import sttp.tapir.server.akkahttp.serverSentEventsBody
 import com.olegych.scastie.api._
 import sttp.capabilities.akka.AkkaStreams
-import OAuthEndpoints._
+import scastie.endpoints.OAuthEndpoints._
 
 
 object StatusEndpoints {

@@ -14,7 +14,6 @@ trait RestApi {
   def format(request: FormatRequest): Future[FormatResponse]
 
   def fetch(snippetId: SnippetId): Future[Option[FetchResult]]
-  def fetchOld(id: Int): Future[Option[FetchResult]]
   def fetchUser(): Future[Option[User]]
   def fetchUserSnippets(): Future[List[SnippetSummary]]
 }

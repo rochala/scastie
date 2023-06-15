@@ -46,25 +46,19 @@ object ServerMain {
     val frontPageServerEndpoints = new FrontPageEndpointsImpl(dispatchActor).serverEndpoints
     val docsServerEndpoints      = new DocsRoutes().serverEndpoints
 
-    def serverLogger = AkkaHttpServerOptions.defaultSlf4jServerLog.copy(
-      logWhenReceived = true,
-      logWhenHandled = true,
-      logAllDecodeFailures = true
-    )
+    def serverLogger = AkkaHttpServerOptions.defaultSlf4jServerLog
 
     val defaultSettings = AkkaHttpServerOptions.customiseInterceptors
       .serverLog(serverLogger)
       .options
 
-    val hostOriginEndpointsOrdered =
-      oauthServerEndpoints ++
+    val hostOriginEndpointsOrdered = oauthServerEndpoints ++
       docsServerEndpoints ++
       statusServerEndpoints ++
       downloadServerEndpoints ++
       apiServerEndpoints
 
-    val crossOriginEndpointsOrdered =
-      publicApiServerEndpoints ++
+    val crossOriginEndpointsOrdered = publicApiServerEndpoints ++
       progressServerEndpoints ++
       frontPageServerEndpoints
 

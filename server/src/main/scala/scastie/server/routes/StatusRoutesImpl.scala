@@ -13,7 +13,7 @@ import com.olegych.scastie.api._
 import com.olegych.scastie.balancer._
 import play.api.libs.json.Json
 import scastie.endpoints.OAuthEndpoints
-import scastie.endpoints.StatusEndpoints
+import scastie.server.endpoints.StatusEndpoints
 import sttp.model.sse.ServerSentEvent
 import sttp.tapir.Endpoint
 import SessionManager._

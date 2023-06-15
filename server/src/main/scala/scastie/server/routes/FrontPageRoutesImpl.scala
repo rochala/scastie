@@ -15,9 +15,9 @@ import com.olegych.scastie.api.SnippetUserPart
 import com.olegych.scastie.balancer.FetchSnippet
 import com.olegych.scastie.util.Base64UUID
 import org.apache.commons.text.StringEscapeUtils
-import scastie.endpoints.FrontPageEndpoints
-import scastie.endpoints.FrontPageEndpoints.ColorScheme
 import scastie.endpoints.SnippetIdUtils._
+import scastie.server.endpoints.FrontPageEndpoints
+import scastie.server.endpoints.FrontPageEndpoints.ColorScheme
 import scastie.server.ServerConfig
 import sttp.tapir.files.FilesOptions
 import sttp.tapir.files.Resources
@@ -49,12 +49,11 @@ class FrontPageEndpointsImpl(dispatchActor: ActorRef)(implicit ec: ExecutionCont
     Resources.get(this.getClass.getClassLoader(), "public/index.html", fileOptions)(_)
   )
 
-  val frontPageSnippetEndpointsImpl = FrontPageEndpoints.frontPageSnippetEndpoints.map { endpoint =>
-    endpoint.serverLogicSuccess[Future] {
+  val frontPageSnippetEndpointsImpl = FrontPageEndpoints.frontPageSnippetEndpoint
+    .serverLogicSuccess[Future] {
       case (Right(snippetId: EmbeddedSnippetId), theme) => getEmbeddedSnippet(snippetId, theme)
       case (Left(snippetId: NormalSnippetId), _)        => getNormalSnippet(snippetId)
     }
-  }
 
   private val placeholders = List(
     "Scastie can run any Scala program with any library in your browser. You don’t need to download or install anything."
@@ -120,7 +119,8 @@ class FrontPageEndpointsImpl(dispatchActor: ActorRef)(implicit ec: ExecutionCont
     embeddedJSEndpointImpl,
     embeddedCSSEndpointImpl,
     publicAssetsEndpointImpl,
-    indexEndpointImpl
-  ) ++ frontPageSnippetEndpointsImpl
+    indexEndpointImpl,
+    frontPageSnippetEndpointsImpl
+  )
 
 }

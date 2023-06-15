@@ -36,6 +36,8 @@ object SbtShared {
     val current = "1.13.1"
   }
 
+  val tapirVersion = "1.5.1"
+
   val runtimeProjectName = "runtime-scala"
 
   def gitIsDirty(): Boolean = {
@@ -115,6 +117,22 @@ object SbtShared {
       "org.scala-js" %%% "scalajs-java-securerandom" % "1.0.0" cross (CrossVersion.for3Use2_13)
     )
   )
+
+  lazy val endpoints = projectMatrix
+    .in(file("endpoints"))
+    .settings(baseNoCrossSettings)
+    .settings(
+      scalacOptions += "-Ywarn-unused",
+      libraryDependencies ++= Seq(
+        "com.softwaremill.sttp.tapir" %%% "tapir-core"      % tapirVersion,
+        "com.softwaremill.sttp.tapir" %%% "tapir-json-play" % tapirVersion,
+        "com.softwaremill.sttp.tapir" %%% "tapir-files"     % tapirVersion,
+        "com.softwaremill.sttp.tapir" %%% "tapir-testing"   % tapirVersion
+      )
+    )
+    .jvmPlatform(Seq(ScalaVersions.jvm))
+    .jsPlatform(ScalaVersions.crossJS, baseJsSettings)
+    .dependsOn(api)
 
   /* api is for the communication between sbt <=> server <=> frontend */
   lazy val api = projectMatrix

@@ -1,5 +1,4 @@
-package scastie.endpoints
-
+package scastie.server.endpoints
 
 import sttp.tapir._
 import sttp.tapir.json.play._
@@ -7,16 +6,15 @@ import sttp.tapir.generic.auto._
 import sttp.tapir.server.akkahttp.serverSentEventsBody
 import com.olegych.scastie.api._
 import sttp.capabilities.akka.AkkaStreams
+import scastie.endpoints.SnippetMatcher
 
 
 object ProgressEndpoints {
 
   val endpointBase = endpoint.in("api")
-  val progressSSE =
-    SnippetMatcher
-      .getApiSnippetEndpoints(endpointBase.in("progress-sse"), "SSE progress for")
-      .map { endpoint =>
-        endpoint.out(serverSentEventsBody)
+  val progressSSE = SnippetMatcher
+      .getApiSnippetEndpoint(endpointBase.in("progress-sse"))
+      .map(_.out(serverSentEventsBody)
         .description(
           """|Endpoint used to connect to EventStream for specific snippet Id.
              |The connection to it should be instantly estabilished after the snippet is run.
@@ -31,16 +29,13 @@ object ProgressEndpoints {
              |
              |""".stripMargin
           )
-      }
+      )
 
-
-  val progressWS =
-    SnippetMatcher
-      .getApiSnippetEndpoints(endpointBase.in("progress-ws"), "Websocket progress for")
-      .map { endpoint =>
-        endpoint.out(
+  val progressWS = SnippetMatcher
+      .getApiSnippetEndpoint(endpointBase.in("progress-ws"))
+      .map(_.out(
           webSocketBody[String, CodecFormat.TextPlain, SnippetProgress, CodecFormat.Json](AkkaStreams))
-      }
+      )
 
-  val endpoints = progressSSE ++ progressWS
+  val endpoints = progressSSE.documentationEndpoints ++ progressWS.documentationEndpoints
 }

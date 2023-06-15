@@ -9,12 +9,11 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.olegych.scastie.api._
 import com.olegych.scastie.balancer._
-import scastie.endpoints.ApiEndpoints
 
 class RestApiServer(
   dispatchActor: ActorRef,
   maybeUser: Option[User],
-  ip: ApiEndpoints.ClientIP = None
+  ip: Option[String] = None
 )(implicit executionContext: ExecutionContext)
   extends RestApi {
 
@@ -75,12 +74,6 @@ class RestApiServer(
       .mapTo[Option[FetchResult]]
   }
 
-  def fetchOld(id: Int): Future[Option[FetchResult]] = {
-    dispatchActor
-      .ask(FetchOldSnippet(id))
-      .mapTo[Option[FetchResult]]
-  }
-
   def fetchUser(): Future[Option[User]] = {
     Future.successful(maybeUser)
   }
@@ -93,45 +86,4 @@ class RestApiServer(
       case _ => Future.successful(Nil)
     }
   }
-
-  @deprecated("Scheduled for removal", "2023-04-30")
-  def getPrivacyPolicy(): Future[Boolean] = {
-    maybeUser match {
-      case Some(user) => dispatchActor
-          .ask(GetPrivacyPolicy(user))
-          .mapTo[Boolean]
-      case _ => Future.successful(true)
-    }
-  }
-
-  @deprecated("Scheduled for removal", "2023-04-30")
-  def acceptPrivacyPolicy(): Future[Boolean] = {
-    maybeUser match {
-      case Some(user) => dispatchActor
-          .ask(SetPrivacyPolicy(user, true))
-          .mapTo[Boolean]
-      case _ => Future.successful(true)
-    }
-  }
-
-  @deprecated("Scheduled for removal", "2023-04-30")
-  def removeUserFromPolicyStatus(): Future[Boolean] = {
-    maybeUser match {
-      case Some(user) => dispatchActor
-          .ask(RemovePrivacyPolicy(user))
-          .mapTo[Boolean]
-      case _ => Future.successful(true)
-    }
-  }
-
-  @deprecated("Scheduled for removal", "2023-04-30")
-  def removeAllUserSnippets(): Future[Boolean] = {
-    maybeUser match {
-      case Some(user) => dispatchActor
-          .ask(RemoveAllUserSnippets(user))
-          .mapTo[Boolean]
-      case _ => Future.successful(true)
-    }
-  }
-
 }

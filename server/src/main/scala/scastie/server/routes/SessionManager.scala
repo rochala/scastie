@@ -34,7 +34,7 @@ object SessionManager {
   implicit class SecureOptionalEndpointExtension[Input, Output, R](
     endpoint: Endpoint[OptionalUserSession, Input, String, Output, R]
   ) {
-    def secure(implicit ec: ExecutionContext) = endpoint
+    def optionalSecure(implicit ec: ExecutionContext) = endpoint
       .serverSecurityLogic[Option[User], Future](optionalSession => Future(maybeAuthenticate(optionalSession)))
   }
 
@@ -59,7 +59,7 @@ object SessionManager {
     userSession match {
       case UserSession(jwtCookie, xsrfCookie, xsrfHeader) if verifyXSRF(xsrfCookie, xsrfHeader) =>
         authenticateJwt(jwtCookie)
-      case _ => "Invalid XSRF token".asLeft
+      case _ => "Illegal authentication".asLeft
     }
   }
 

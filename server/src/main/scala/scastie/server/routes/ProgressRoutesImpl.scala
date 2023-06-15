@@ -12,22 +12,21 @@ import akka.NotUsed
 import com.olegych.scastie.api._
 import com.olegych.scastie.balancer._
 import play.api.libs.json.Json
-import scastie.endpoints.ProgressEndpoints
+import scastie.server.endpoints.ProgressEndpoints
 import sttp.model.sse.ServerSentEvent
 
 class ProgressRoutesImpl(progressActor: ActorRef)(implicit ec: ExecutionContext) {
 
-  val progressSSEImpl = ProgressEndpoints.progressSSE.map { endpoint =>
-    endpoint.serverLogicSuccess[Future](snippetId =>
+  val progressSSEImpl = ProgressEndpoints.progressSSE.underlying
+    .serverLogicSuccess[Future](snippetId =>
       progressActor
         .ask(SubscribeProgress(snippetId))(1.second)
         .mapTo[Source[SnippetProgress, NotUsed]]
         .map(_.map(progress => ServerSentEvent(Some(Json.stringify(Json.toJson(progress))))))
     )
-  }
 
-  val progressWSImpl = ProgressEndpoints.progressWS.map { endpoint =>
-    endpoint.serverLogicSuccess[Future](snippetId => {
+  val progressWSImpl = ProgressEndpoints.progressWS.underlying
+    .serverLogicSuccess[Future](snippetId => {
       progressActor
         .ask(SubscribeProgress(snippetId))(1.second)
         .mapTo[Source[SnippetProgress, NotUsed]]
@@ -36,7 +35,6 @@ class ProgressRoutesImpl(progressActor: ActorRef)(implicit ec: ExecutionContext)
           Flow.fromSinkAndSource(in, source)
         }
     })
-  }
 
-  val serverEndpoints = progressSSEImpl ++ progressWSImpl
+  val serverEndpoints = progressSSEImpl :: progressWSImpl :: Nil
 }

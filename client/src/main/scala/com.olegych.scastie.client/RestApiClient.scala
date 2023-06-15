@@ -1,131 +1,81 @@
 package com.olegych.scastie.client
 
+import java.net.URI
+import scala.concurrent.Future
+import scala.util.Try
+
 import com.olegych.scastie.api._
 import org.scalajs.dom
 import org.scalajs.dom.XMLHttpRequest
 import play.api.libs.json._
-
-import scala.concurrent.Future
-import scala.util.Try
-
 import scalajs.concurrent.JSExecutionContext.Implicits.queue
-import scalajs.js.Thenable.Implicits._
 import scalajs.js
+import scalajs.js.Thenable.Implicits._
+import scastie.endpoints.ApiEndpoints
+import scastie.endpoints.OAuthEndpoints
+import sttp.capabilities.WebSockets
+import sttp.client3.FetchBackend
+import sttp.client3.FetchOptions
+import sttp.model.Uri
+import sttp.model.Uri._
+import sttp.tapir.client.sttp.SttpClientInterpreter
+import sttp.tapir.Endpoint
 
-class RestApiClient(serverUrl: Option[String]) extends RestApi {
+class RestApiClient(maybeServerUrl: Option[String]) extends RestApi {
+  import scastie.endpoints.SecureClientExtensions.SecureScalaJSClient
 
-  val apiBase: String = serverUrl.getOrElse("")
+  private val backend = FetchBackend()
+  val client          = SttpClientInterpreter()
+  val serverUri       = maybeServerUrl.map(serverUrl => uri"$serverUrl")
 
-  def tryParse[T: Reads](response: XMLHttpRequest): Option[T] =
-    tryParse(response.responseText)
+  private def getXSRFToken: Option[String] = dom.document.cookie
+    .split(";")
+    .find(_.startsWith("__Host-XSRF-Token"))
+    .flatMap(_.split("=").lastOption)
 
-  def tryParse[T: Reads](response: dom.Response): Future[Option[T]] =
-    response.text().map(tryParse(_))
+  def logout = client
+    .toClientThrowErrors(OAuthEndpoints.logout, serverUri, backend)
+    .apply(())
 
-  def tryParse[T: Reads](text: String): Option[T] = {
-    Option.when(text.nonEmpty)(text).flatMap(t =>
-      Try(Json.parse(t)).toOption.flatMap(Json.fromJson[T](_).asOpt)
-    )
-  }
+  def run(inputs: Inputs) = client
+    .toClientThrowErrors(ApiEndpoints.runEndpoint, serverUri, backend)
+    .apply(inputs)
 
-  def appendXSRFHeader(headers: dom.Headers) = {
-    val xsrfToken = dom.document.cookie
-      .split(";")
-      .find(_.startsWith("__Host-XSRF-Token"))
-      .flatMap(_.split("=").lastOption)
-    xsrfToken.map(xsrf => headers.append("X-XSRF-TOKEN", xsrf))
-    headers
-  }
+  def save(inputs: Inputs): Future[SnippetId] = client
+    .toSecureClientThrowErrors(ApiEndpoints.saveEndpoint.clientEndpoint, serverUri, backend)
+    .apply(getXSRFToken)(inputs)
 
-  def get[T: Reads](url: String): Future[Option[T]] = {
-    val header = appendXSRFHeader(new dom.Headers(js.Dictionary("Accept" -> "application/json")))
-    dom
-      .fetch(apiBase + "/api" + url, js.Dynamic.literal(headers = header, method = dom.HttpMethod.GET).asInstanceOf[dom.RequestInit])
-      .flatMap(tryParse[T](_))
-  }
+  def format(request: FormatRequest): Future[FormatResponse] = client
+    .toClientThrowErrors(ApiEndpoints.formatEndpoint, serverUri, backend)
+    .apply(request)
 
-  class Post[O: Reads]() {
-    def using[I: Writes](url: String, data: I, async: Boolean = true): Future[Option[O]] = {
-      val header = appendXSRFHeader(new dom.Headers(js.Dictionary("Accept" -> "application/json", "Content-Type" -> "application/json")))
-      dom
-        .fetch(
-          apiBase + "/api" + url,
-          js.Dynamic
-            .literal(headers = header, method = dom.HttpMethod.POST, body = Json.prettyPrint(Json.toJson(data)))
-            .asInstanceOf[dom.RequestInit]
-        )
-        .flatMap(tryParse[O](_))
-    }
-  }
+  def update(editInputs: EditInputs): Future[Option[SnippetId]] = client
+    .toSecureClientThrowDecodeFailures(ApiEndpoints.updateEndpoint.clientEndpoint, serverUri, backend)
+    .apply(getXSRFToken)(editInputs)
+    .map(_.toOption)
 
-  def post[O: Reads]: Post[O] = new Post[O]
+  def fork(editInputs: EditInputs): Future[Option[SnippetId]] = client
+    .toSecureClientThrowDecodeFailures(ApiEndpoints.forkEndpoint.clientEndpoint, serverUri, backend)
+    .apply(getXSRFToken)(editInputs)
+    .map(_.toOption)
 
-  def run(inputs: Inputs): Future[SnippetId] =
-    post[SnippetId].using("/run", inputs).map(_.get)
+  def delete(snippetId: SnippetId): Future[Boolean] = client
+    .toSecureClientThrowDecodeFailures(ApiEndpoints.deleteEndpoint.clientEndpoint, serverUri, backend)
+    .apply(getXSRFToken)(snippetId)
+    .map(_.isRight)
 
-  def format(request: FormatRequest): Future[FormatResponse] =
-    post[FormatResponse].using("/format", request).map(_.get)
+  def fetch(snippetId: SnippetId): Future[Option[FetchResult]] = client
+    .toClientThrowDecodeFailures(ApiEndpoints.snippetApiEndpoint.underlying, serverUri, backend)
+    .apply(snippetId)
+    .map(_.toOption)
 
-  def save(inputs: Inputs): Future[SnippetId] =
-    post[SnippetId].using("/save", inputs).map(_.get)
+  def fetchUser(): Future[Option[User]] = client
+    .toSecureClientThrowDecodeFailures(ApiEndpoints.userSettingsEndpoint.clientEndpoint, serverUri, backend)
+    .apply(getXSRFToken)(())
+    .map(_.toOption)
 
-  def saveBlocking(inputs: Inputs): Option[SnippetId] = {
-    val req = new dom.XMLHttpRequest()
-    req.open(
-      "POST",
-      apiBase + "/api/save",
-      async = false
-    )
-    req.setRequestHeader("Content-Type", "application/json")
-    req.setRequestHeader("Accept", "application/json")
-
-    var snippetId: Option[SnippetId] = None
-
-    req.onreadystatechange = { (e: dom.Event) =>
-      if (req.readyState == 4 && req.status == 200) {
-        snippetId = tryParse[SnippetId](req)
-      }
-    }
-
-    req.send(Json.prettyPrint(Json.toJson(inputs)))
-
-    snippetId
-  }
-
-  def update(editInputs: EditInputs): Future[Option[SnippetId]] =
-    post[SnippetId].using("/update", editInputs)
-
-  def fork(editInputs: EditInputs): Future[Option[SnippetId]] =
-    post[SnippetId].using("/fork", editInputs)
-
-  def delete(snippetId: SnippetId): Future[Boolean] =
-    post[Boolean].using("/delete", snippetId).map(_.getOrElse(false))
-
-  def fetch(snippetId: SnippetId): Future[Option[FetchResult]] =
-    get[FetchResult]("/snippets/" + snippetId.url)
-
-  def fetchOld(id: Int): Future[Option[FetchResult]] =
-    get[FetchResult](s"/old-snippets/$id")
-
-  def fetchUser(): Future[Option[User]] =
-    get[User]("/user/settings")
-
-  @deprecated("Scheduled for removal", "2023-04-30")
-  def getPrivacyPolicyStatus(): Future[Boolean] =
-    post[Boolean].using("/user/privacyPolicyStatus", "").map(_.getOrElse(true))
-
-  @deprecated("Scheduled for removal", "2023-04-30")
-  def acceptPrivacyPolicy(): Future[Boolean] =
-    post[Boolean].using("/user/acceptPrivacyPolicy", "", async=false).map(_.getOrElse(false))
-
-  @deprecated("Scheduled for removal", "2023-04-30")
-  def removeAllUserSnippets(): Future[Boolean] =
-    post[Boolean].using("/user/removeAllUserSnippets", "", async=false).map(_.getOrElse(false))
-
-  @deprecated("Scheduled for removal", "2023-04-30")
-  def removeUserFromPolicyStatus(): Future[Boolean] =
-    post[Boolean].using("/user/removeUserFromPolicyStatus", "", async=false).map(_.getOrElse(false))
-
-  def fetchUserSnippets(): Future[List[SnippetSummary]] =
-    get[List[SnippetSummary]]("/user/snippets").map(_.getOrElse(Nil))
+  def fetchUserSnippets(): Future[List[SnippetSummary]] = client
+    .toSecureClientThrowDecodeFailures(ApiEndpoints.userSnippetsEndpoint.clientEndpoint, serverUri, backend)
+    .apply(getXSRFToken)(())
+    .map(_.getOrElse(Nil))
 }

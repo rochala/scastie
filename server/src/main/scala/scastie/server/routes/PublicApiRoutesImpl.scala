@@ -3,14 +3,16 @@ package scastie.server.routes
 import akka.actor.{ActorRef, ActorSystem}
 import scastie.endpoints.ApiEndpoints
 import scastie.server.RestApiServer
+import sttp.tapir._
 
 class PublicApiRoutesImpl(dispatchActor: ActorRef)(implicit system: ActorSystem) {
   import system.dispatcher
 
   val runImpl = ApiEndpoints.runEndpoint
+    .in(clientIp)
     .serverLogicSuccess(inputs => {
-      val (clientIP, input) = inputs
-      new RestApiServer(dispatchActor, None, clientIP).run(input)
+      val (input, clientIp) = inputs
+      new RestApiServer(dispatchActor, None, clientIp).run(input)
     })
 
   val formatImpl = ApiEndpoints.formatEndpoint
@@ -18,9 +20,8 @@ class PublicApiRoutesImpl(dispatchActor: ActorRef)(implicit system: ActorSystem)
       new RestApiServer(dispatchActor, None).format(_)
     )
 
-  val snippetEndpoints = ApiEndpoints.snippetApiEndpoints.map { endpoint =>
-    endpoint.serverLogicOption(new RestApiServer(dispatchActor, None).fetch(_))
-  }
+  val snippetEndpoint = ApiEndpoints.snippetApiEndpoint.underlying
+    .serverLogicOption(new RestApiServer(dispatchActor, None).fetch(_))
 
-  val serverEndpoints = List(runImpl, formatImpl) ::: snippetEndpoints
+  val serverEndpoints = List(runImpl, formatImpl, snippetEndpoint)
 }
