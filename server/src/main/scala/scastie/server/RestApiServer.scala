@@ -74,6 +74,12 @@ class RestApiServer(
       .mapTo[Option[FetchResult]]
   }
 
+  def fetchOld(id: Int): Future[Option[FetchResult]] = {
+    dispatchActor
+      .ask(FetchOldSnippet(id))
+      .mapTo[Option[FetchResult]]
+  }
+
   def fetchUser(): Future[Option[User]] = {
     Future.successful(maybeUser)
   }

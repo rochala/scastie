@@ -12,7 +12,6 @@ object ModalState {
   def allClosed: ModalState = ModalState(
     isHelpModalClosed = true,
     isPrivacyPolicyModalClosed = true,
-    isPrivacyPolicyPromptClosed = true,
     shareModalSnippetId = None,
     isResetModalClosed = true,
     isNewSnippetModalClosed = true,
@@ -23,7 +22,6 @@ object ModalState {
   def default: ModalState = ModalState(
     isHelpModalClosed = true,
     isPrivacyPolicyModalClosed = true,
-    isPrivacyPolicyPromptClosed = true,
     shareModalSnippetId = None,
     isResetModalClosed = true,
     isNewSnippetModalClosed = true,
@@ -35,8 +33,6 @@ object ModalState {
 case class ModalState(
     isHelpModalClosed: Boolean,
     isPrivacyPolicyModalClosed: Boolean,
-    @deprecated("Scheduled for removal", "2023-04-30")
-    isPrivacyPolicyPromptClosed: Boolean,
     shareModalSnippetId: Option[SnippetId],
     isResetModalClosed: Boolean,
     isNewSnippetModalClosed: Boolean,

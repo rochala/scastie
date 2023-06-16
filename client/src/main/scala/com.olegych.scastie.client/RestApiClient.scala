@@ -69,6 +69,11 @@ class RestApiClient(maybeServerUrl: Option[String]) extends RestApi {
     .apply(snippetId)
     .map(_.toOption)
 
+  def fetchOld(id: Int): Future[Option[FetchResult]] = client
+    .toClientThrowDecodeFailures(ApiEndpoints.oldSnippetApiEndpoint, serverUri, backend)
+    .apply(id)
+    .map(_.toOption)
+
   def fetchUser(): Future[Option[User]] = client
     .toSecureClientThrowDecodeFailures(ApiEndpoints.userSettingsEndpoint.clientEndpoint, serverUri, backend)
     .apply(getXSRFToken)(())
@@ -78,4 +83,5 @@ class RestApiClient(maybeServerUrl: Option[String]) extends RestApi {
     .toSecureClientThrowDecodeFailures(ApiEndpoints.userSnippetsEndpoint.clientEndpoint, serverUri, backend)
     .apply(getXSRFToken)(())
     .map(_.getOrElse(Nil))
+
 }

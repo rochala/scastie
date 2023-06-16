@@ -93,9 +93,22 @@ object ApiEndpoints {
       )
   }
 
+  val oldSnippetApiEndpoint = {
+    publicEndpoint
+      .in("old-snippets")
+      .in(path[Int]("old-snippet-id"))
+      .errorOut(statusCode(StatusCode.NotFound))
+      .out(jsonBody[FetchResult])
+      .description(
+        """|Endpoint used to fetch snippet by its old id.
+           |""".stripMargin
+        )
+  }
+
   val publicEndpoints: List[AnyEndpoint] = List(
     runEndpoint,
-    formatEndpoint
+    formatEndpoint,
+    oldSnippetApiEndpoint
   ) ++ snippetApiEndpoint.documentationEndpoints
 
   val internalEndpoints: List[AnyEndpoint] = List(

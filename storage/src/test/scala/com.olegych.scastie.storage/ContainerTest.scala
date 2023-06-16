@@ -27,7 +27,7 @@ class ContainerTest extends AnyFunSuite with BeforeAndAfterAll with OptionValues
   val root = Files.createTempDirectory("test")
   val oldRoot = Files.createTempDirectory("old-test")
 
-  private val testContainer: SnippetsContainer with UsersContainer = {
+  private val testContainer: SnippetsContainer = {
     if (mongo)
       new MongoDBContainer(defaultConfig = true)
     else {
@@ -181,68 +181,5 @@ class ContainerTest extends AnyFunSuite with BeforeAndAfterAll with OptionValues
     val result = testContainer.readSnippet(snippetId).await
 
     assert(result.value.progresses.headOption.value == progress, "we properly append output")
-  }
-
-  test("deleteAllSnippets") {
-    val user = UserLogin("github-user-delete" + Random.nextInt())
-
-    val inputs1 = Inputs.default.copy(code = "inputs1")
-    val snippetId1 = testContainer.save(inputs1, Some(user)).await
-
-    val inputs2 = Inputs.default.copy(code = "inputs2")
-    val snippetId2 = testContainer.save(inputs2, Some(user)).await
-
-    val inputs2U = Inputs.default.copy(code = "inputs2 updated")
-    val snippetId2U = testContainer.update(snippetId2, inputs2U).await.get
-
-    assert(testContainer.listSnippets(user).await.size == 2)
-
-    testContainer.removeUserSnippets(user).await
-
-    assert(testContainer.readSnippet(snippetId1).await == None)
-    assert(testContainer.readSnippet(snippetId2U).await == None)
-    assert(testContainer.readSnippet(snippetId2).await == None)
-
-    assert(testContainer.listSnippets(user).await.size == 0)
-  }
-
-  def ensureUserCleanup(username: String, test: String => Any) = {
-    try {
-      test("bob")
-    } finally {
-      testContainer.deleteUser(UserLogin(username)).await
-    }
-
-  }
-
-  test("add new user") {
-    ensureUserCleanup("bob", { username =>
-      val snippetId = testContainer.addNewUser(UserLogin(username)).await
-      assert(snippetId)
-    })
-  }
-
-  test("get user privacy policy acceptance") {
-    ensureUserCleanup("bob", { username =>
-      val snippetId = testContainer.addNewUser(UserLogin(username)).await
-      val response = testContainer.getPrivacyPolicyResponse(UserLogin(username)).await
-      assert(testContainer.deleteUser(UserLogin(username)).await == true)
-    })
-  }
-
-  test("set user privacy policy acceptance") {
-    ensureUserCleanup("bob", { username =>
-      val snippetId = testContainer.addNewUser(UserLogin(username)).await
-      val updatePrivacyPolicy = testContainer.setPrivacyPolicyResponse(UserLogin(username), false).await
-      val response = testContainer.getPrivacyPolicyResponse(UserLogin(username)).await
-      assert(response == false)
-    })
-  }
-
-  test("remove user from privacy policy list") {
-    val username = "bob"
-    val snippetId = testContainer.addNewUser(UserLogin(username)).await
-    val removeUser = testContainer.deleteUser(UserLogin(username)).await
-    assert(removeUser == true)
   }
 }

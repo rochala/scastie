@@ -34,15 +34,6 @@ trait SnippetsContainer {
     deleteUpdate(0)
   }
   protected def delete(snippetId: SnippetId): Future[Boolean]
-  def removeUserSnippets(user: UserLogin): Future[Boolean] = {
-    listSnippets(user).flatMap(snippets => {
-      Future.sequence(
-        snippets
-          .map(snippet => deleteAll(snippet.snippetId)))
-          .map(_.fold(true)(_ && _)
-      )
-    })
-  }
   def listSnippets(user: UserLogin): Future[List[SnippetSummary]]
   def readOldSnippet(id: Int): Future[Option[FetchResult]]
   def readScalaJs(snippetId: SnippetId): Future[Option[FetchResultScalaJs]]

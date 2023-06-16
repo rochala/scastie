@@ -140,13 +140,5 @@ trait MongoDBSnippetsContainer extends SnippetsContainer with GenericMongoContai
     .headOption()
     .map(_.flatMap(fromBson[MongoSnippet]).map(_.toFetchResult))
 
-  override def removeUserSnippets(user: UserLogin): Future[Boolean] = {
-    val query = or(Document("user" -> user.login), Document("snippetId.user.login" -> user.login))
-    val deletion = snippets.deleteMany(query).head().map(_.wasAcknowledged)
-
-    lazy val validation = listSnippets(user).map(_.isEmpty)
-    deletion.flatMap(deletionResult => validation.map(_ && deletionResult))
-  }
-
   override def close(): Unit = client.close()
 }

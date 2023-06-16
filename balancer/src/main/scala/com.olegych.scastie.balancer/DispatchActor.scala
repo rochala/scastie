@@ -46,18 +46,10 @@ case class DownloadSnippet(snippetId: SnippetId)
 case class ForkSnippet(snippetId: SnippetId, inputs: InputsWithIpAndUser)
 
 case class FetchSnippet(snippetId: SnippetId)
+case class FetchOldSnippet(id: Int)
 case class FetchUserSnippets(user: User)
 
 case class ReceiveStatus(requester: ActorRef)
-
-@deprecated("Scheduled for removal", "2023-04-30")
-case class GetPrivacyPolicy(user: User)
-@deprecated("Scheduled for removal", "2023-04-30")
-case class SetPrivacyPolicy(user: User, status: Boolean)
-@deprecated("Scheduled for removal", "2023-04-30")
-case class RemovePrivacyPolicy(user: User)
-@deprecated("Scheduled for removal", "2023-04-30")
-case class RemoveAllUserSnippets(user: User)
 
 case class Run(inputsWithIpAndUser: InputsWithIpAndUser, snippetId: SnippetId)
 
@@ -241,6 +233,10 @@ class DispatchActor(progressActor: ActorRef, statusActor: ActorRef)
       val sender = this.sender()
       logError(container.readSnippet(snippetId).map(sender ! _))
 
+    case FetchOldSnippet(id) =>
+      val sender = this.sender()
+      logError(container.readOldSnippet(id).map(sender ! _))
+
     case FetchUserSnippets(user) =>
       val sender = this.sender()
       logError(container.listSnippets(UserLogin(user.login)).map(sender ! _))
@@ -256,18 +252,6 @@ class DispatchActor(progressActor: ActorRef, statusActor: ActorRef)
     case FetchScalaJsSourceMap(snippetId) =>
       val sender = this.sender()
       logError(container.readScalaJsSourceMap(snippetId).map(sender ! _))
-    case GetPrivacyPolicy(user) =>
-      val sender = this.sender()
-      logError(container.getPrivacyPolicyResponse(UserLogin(user.login)).map(sender ! _))
-    case SetPrivacyPolicy(user, status) =>
-      val sender = this.sender()
-      logError(container.setPrivacyPolicyResponse(UserLogin(user.login), status).map(sender ! _))
-    case RemovePrivacyPolicy(user) =>
-      val sender = this.sender()
-      logError(container.deleteUser(UserLogin(user.login)).map(sender ! _))
-    case RemoveAllUserSnippets(user) =>
-      val sender = this.sender()
-      logError(container.removeUserSnippets(UserLogin(user.login)).map(sender ! _))
 
     case progress: api.SnippetProgress =>
       val sender = this.sender()

@@ -3,8 +3,8 @@ package client
 package components
 
 import api.User
-import extra._
 import japgolly.scalajs.react._
+import japgolly.scalajs.react.extra._
 import org.scalajs.dom
 import vdom.all._
 

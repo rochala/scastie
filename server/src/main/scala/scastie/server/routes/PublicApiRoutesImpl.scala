@@ -23,5 +23,8 @@ class PublicApiRoutesImpl(dispatchActor: ActorRef)(implicit system: ActorSystem)
   val snippetEndpoint = ApiEndpoints.snippetApiEndpoint.underlying
     .serverLogicOption(new RestApiServer(dispatchActor, None).fetch(_))
 
+  val oldSnippetEndpoint = ApiEndpoints.oldSnippetApiEndpoint
+    .serverLogicOption(new RestApiServer(dispatchActor, None).fetchOld(_))
+
   val serverEndpoints = List(runImpl, formatImpl, snippetEndpoint)
 }

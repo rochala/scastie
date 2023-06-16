@@ -127,6 +127,24 @@ trait FilesystemSnippetsContainer extends SnippetsContainer with GenericFilesyst
     }
   }
 
+  def readScalaJs(snippetId: SnippetId): Future[Option[FetchResultScalaJs]] =
+    Future {
+      slurp(scalaJsFile(snippetId)).map(content => FetchResultScalaJs(content))
+    }
+
+  def readScalaJsSourceMap(
+      snippetId: SnippetId
+  ): Future[Option[FetchResultScalaJsSourceMap]] = Future {
+    slurp(scalaJsSourceMapFile(snippetId))
+      .map(content => FetchResultScalaJsSourceMap(content))
+  }
+
+  def readSnippet(snippetId: SnippetId): Future[Option[FetchResult]] = Future {
+    readInputs(snippetId).map(
+      inputs => FetchResult.create(inputs, readOutputs(snippetId).getOrElse(Nil))
+    )
+  }
+
   def readOldSnippet(id: Int): Future[Option[FetchResult]] = {
 
     def oldPath(id: Int): Path =
@@ -149,24 +167,6 @@ trait FilesystemSnippetsContainer extends SnippetsContainer with GenericFilesyst
         inputs => FetchResult.create(inputs, readOldOutputs(id).getOrElse(Nil))
       )
     }
-  }
-
-  def readScalaJs(snippetId: SnippetId): Future[Option[FetchResultScalaJs]] =
-    Future {
-      slurp(scalaJsFile(snippetId)).map(content => FetchResultScalaJs(content))
-    }
-
-  def readScalaJsSourceMap(
-      snippetId: SnippetId
-  ): Future[Option[FetchResultScalaJsSourceMap]] = Future {
-    slurp(scalaJsSourceMapFile(snippetId))
-      .map(content => FetchResultScalaJsSourceMap(content))
-  }
-
-  def readSnippet(snippetId: SnippetId): Future[Option[FetchResult]] = Future {
-    readInputs(snippetId).map(
-      inputs => FetchResult.create(inputs, readOutputs(snippetId).getOrElse(Nil))
-    )
   }
 
   protected def insert(snippetId: SnippetId, inputs: Inputs): Future[Unit] =

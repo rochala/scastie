@@ -121,12 +121,6 @@ case class ScastieBackend(scastieId: UUID, serverUrl: Option[String], scope: Bac
 
   val closePrivacyPolicyModal: Reusable[Callback] = Reusable.always(scope.modState(_.togglePrivacyPolicyModal))
 
-  val closePrivacyPolicyPrompt: Reusable[Callback] =
-    Reusable.always(scope.modState(_.setPrivacyPolicyPromptClosed(true)))
-
-  val openPrivacyPolicyPrompt: Reusable[Callback] =
-    Reusable.always(scope.modState(_.setPrivacyPolicyPromptClosed(false)))
-
   val openLoginModal: Reusable[Callback] = Reusable.always(scope.modState(_.setLoginModalClosed(false)))
 
   val closeLoginModal: Reusable[Callback] = Reusable.always(scope.modState(_.setLoginModalClosed(true)))
@@ -317,12 +311,6 @@ case class ScastieBackend(scastieId: UUID, serverUrl: Option[String], scope: Bac
     )
   }
 
-  def loadOldSnippet(id: Int): Callback = {
-    loadSnippetBase(
-      restApiClient.fetchOld(id)
-    )
-  }
-
   def loadSnippet(snippetId: SnippetId): Callback = {
     loadSnippetBase(
       restApiClient.fetch(snippetId),
@@ -330,6 +318,13 @@ case class ScastieBackend(scastieId: UUID, serverUrl: Option[String], scope: Bac
       snippetId = Some(snippetId)
     )
   }
+
+  def loadOldSnippet(id: Int): Callback = {
+    loadSnippetBase(
+      restApiClient.fetchOld(id)
+    )
+  }
+
 
   private def loadSnippetBase(
     fetchSnippet: => Future[Option[FetchResult]],

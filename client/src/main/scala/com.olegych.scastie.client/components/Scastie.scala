@@ -109,18 +109,13 @@ object Scastie {
       case None => {
         props.snippetId match {
           case Some(snippetId) => backend.loadSnippet(snippetId)
-
-          case None => props.oldSnippetId match {
-              case Some(id) => backend.loadOldSnippet(id)
-
-              case None => Callback.traverseOption(LocalStorage.load) { state =>
-                  backend.scope.modState { _ =>
-                    state
-                      .setRunning(false)
-                      .setCleanInputs
-                      .resetScalajs
-                  }
-                }
+          case None => Callback.traverseOption(LocalStorage.load) { state =>
+              backend.scope.modState { _ =>
+                state
+                  .setRunning(false)
+                  .setCleanInputs
+                  .resetScalajs
+              }
             }
         }
       }
