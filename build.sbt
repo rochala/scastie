@@ -312,11 +312,12 @@ lazy val client = project
   .settings(baseNoCrossSettings)
   .settings(baseJsSettings)
   .settings(
+    scalaVersion := ScalaVersions.js, // Explicitly set Scala 3.3.6
     externalNpm := {
       Process(yarnBin, baseDirectory.value.getParentFile) ! ProcessLogger(line => ())
       baseDirectory.value.getParentFile
     },
-    stFlavour := Flavour.ScalajsReact,
+    stFlavour := Flavour.Laminar, // Updated from ScalajsReact to Laminar
     Compile / fastLinkJS / scalaJSLinkerConfig := {
       val dir = (Compile / fastLinkJS / scalaJSLinkerOutputDirectory).value.toURI()
       scalaJSLinkerConfig.value
@@ -341,8 +342,13 @@ lazy val client = project
       "vite"
     ),
     libraryDependencies ++= Seq(
+      // Laminar and Airstream for reactive UI
+      "com.raquo"                         %%% "laminar"                     % "17.1.0",
+      "com.raquo"                         %%% "waypoint"                    % "8.0.0",  // Router for Laminar
+      // Keep scalajs-react temporarily during migration
       "com.github.japgolly.scalajs-react" %%% "core"                        % "2.1.1",
       "com.github.japgolly.scalajs-react" %%% "extra"                       % "2.1.1",
+      // Other dependencies
       "org.scala-js"                      %%% "scala-js-macrotask-executor" % "1.1.1",
       "io.circe"                          %%% "circe-parser"                % "0.14.6",
     )

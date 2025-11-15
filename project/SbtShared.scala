@@ -27,12 +27,12 @@ object SbtShared {
     val stableNext = "3.7.3"
     val latestLTS  = "3.3.7"
     val latestNext = "3.7.4-RC3"
-    val js         = latest213
+    val js         = stableLTS  // Updated to Scala 3.3.7 for Laminar client
     val sbt        = latest212
     val jvm        = latest213
     val cross      =
       List(latest210, latest211, latest212, latest213, old3, stableLTS, stableNext, js, sbt, jvm).distinct
-    val crossJS    = List(latest212, latest213, js).distinct
+    val crossJS    = List(latest212, latest213, stableLTS, js).distinct  // Added Scala 3 support
   }
 
   object ScalaJSVersions {
