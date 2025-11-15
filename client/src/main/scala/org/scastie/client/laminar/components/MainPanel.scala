@@ -126,12 +126,30 @@ object MainPanel:
    * Create build settings view.
    */
   private def createBuildSettingsView(store: ScastieStore): HtmlElement =
-    div(
-      cls := "build-settings-view",
-      h2("Build Settings"),
-      p("Build settings UI will be implemented here")
-      // TODO: Implement BuildSettings component
-    )
+    store match
+      case extended: ScastieStoreExtended =>
+        BuildSettings(
+          visible = Val(true),
+          inputs = extended.inputsSignal,
+          isDarkTheme = extended.isDarkThemeSignal,
+          isBuildDefault = extended.isBuildDefaultSignal,
+          isResetModalClosed = extended.isResetModalClosedSignal,
+          setTarget = extended.setTargetObserver,
+          closeResetModal = extended.closeResetModalObserver,
+          resetBuild = extended.resetBuildObserver,
+          openResetModal = extended.openResetModalObserver,
+          sbtConfigChange = extended.setSbtConfigExtraObserver,
+          removeScalaDependency = extended.removeScalaDependencyObserver,
+          updateDependencyVersion = extended.updateDependencyVersionObserver,
+          addScalaDependency = extended.addScalaDependencyObserver,
+          language = extended.languageSignal
+        )
+      case _ =>
+        div(
+          cls := "build-settings-view",
+          h2("Build Settings"),
+          p("Build settings require extended store with API integration")
+        )
 
   /**
    * Create code snippets view.

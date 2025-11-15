@@ -117,6 +117,27 @@ class ScastieStoreExtended(
   def addScalaDependency(dependency: ScalaDependency, project: Project): Unit =
     updateState(_.addScalaDependency(dependency, project))
 
+  val addScalaDependencyObserver: Observer[(ScalaDependency, Project)] =
+    Observer[(ScalaDependency, Project)] { case (dependency, project) =>
+      addScalaDependency(dependency, project)
+    }
+
+  /** Remove Scala dependency */
+  def removeScalaDependency(dependency: ScalaDependency): Unit =
+    updateState(_.removeScalaDependency(dependency))
+
+  val removeScalaDependencyObserver: Observer[ScalaDependency] =
+    Observer[ScalaDependency](dependency => removeScalaDependency(dependency))
+
+  /** Update dependency version */
+  def updateDependencyVersion(dependency: ScalaDependency, version: String): Unit =
+    updateState(_.updateDependencyVersion(dependency, version))
+
+  val updateDependencyVersionObserver: Observer[(ScalaDependency, String)] =
+    Observer[(ScalaDependency, String)] { case (dependency, version) =>
+      updateDependencyVersion(dependency, version)
+    }
+
   /** Load snippet by ID */
   def loadSnippet(snippetId: SnippetId): Unit =
     apiClient.fetchSnippet(snippetId).foreach { resultOpt =>

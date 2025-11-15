@@ -72,6 +72,14 @@ class ScastieStore(initialState: ScastieState):
   val userSignal: Signal[Option[org.scastie.api.User]] =
     stateSignal.map(_.user)
 
+  /** Is build default signal */
+  val isBuildDefaultSignal: Signal[Boolean] =
+    stateSignal.map(_.isBuildDefault)
+
+  /** Is reset modal closed signal */
+  val isResetModalClosedSignal: Signal[Boolean] =
+    stateSignal.map(_.modalState.isResetModalClosed)
+
   // ===== State Update Functions =====
 
   /** Update state with a function */
@@ -164,6 +172,20 @@ class ScastieStore(initialState: ScastieState):
 
   val closeLoginModalObserver: Observer[Unit] =
     Observer[Unit](_ => closeLoginModal())
+
+  /** Open reset modal */
+  def openResetModal(): Unit =
+    updateState(s => s.copy(modalState = s.modalState.copy(isResetModalClosed = false)))
+
+  val openResetModalObserver: Observer[Unit] =
+    Observer[Unit](_ => openResetModal())
+
+  /** Close reset modal */
+  def closeResetModal(): Unit =
+    updateState(s => s.copy(modalState = s.modalState.copy(isResetModalClosed = true)))
+
+  val closeResetModalObserver: Observer[Unit] =
+    Observer[Unit](_ => closeResetModal())
 
   // ===== Running State Actions =====
 
