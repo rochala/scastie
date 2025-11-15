@@ -68,6 +68,10 @@ class ScastieStore(initialState: ScastieState):
   val inputsHasChangedSignal: Signal[Boolean] =
     stateSignal.map(_.inputsHasChanged)
 
+  /** User signal */
+  val userSignal: Signal[Option[org.scastie.api.User]] =
+    stateSignal.map(_.user)
+
   // ===== State Update Functions =====
 
   /** Update state with a function */

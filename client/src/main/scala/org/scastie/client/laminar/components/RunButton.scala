@@ -1,67 +1,88 @@
 package org.scastie.client.laminar.components
 
 import com.raquo.laminar.api.L.*
-import org.scalajs.dom
+import org.scastie.client.{View, i18n}
+import org.scastie.client.components.editor.EditorKeymaps
+import org.scastie.client.i18n.I18n
 
 /**
- * Simple Laminar button component - proof of concept migration from React.
+ * Run/Save button component - Laminar version
  *
- * This demonstrates the migration pattern from scalajs-react to Laminar.
+ * Migrated from: org.scastie.client.components.RunButton
  *
- * React version (old):
- * {{{
- * object RunButton {
- *   case class Props(onClick: Callback, disabled: Boolean)
- *
- *   private val component = ScalaComponent
- *     .builder[Props]("RunButton")
- *     .render_P { props =>
- *       button(
- *         cls := "run-button",
- *         onClick --> props.onClick,
- *         disabled := props.disabled,
- *         "Run"
- *       )
- *     }
- *     .build
- *
- *   def apply(props: Props) = component(props)
- * }
- * }}}
+ * Shows different states:
+ * - "Run" when not running
+ * - "Running..." with spinner when execution is in progress
  */
 object RunButton:
 
   /**
-   * Create a run button element.
+   * Create a run/save button element.
    *
-   * @param onClick Observer to handle click events
-   * @param disabled Signal indicating whether button is disabled
-   * @param text Optional button text (defaults to "Run")
-   * @return Button element
+   * @param isRunning Signal indicating if code is currently running
+   * @param isStatusOk Signal indicating if server status is ok
+   * @param onSave Observer to handle save/run action
+   * @param setView Observer to set view (used when clicking while running)
+   * @param embedded Whether this is embedded mode
+   * @return Button element as list item
    */
   def apply(
-    onClick: Observer[Unit],
-    disabled: Signal[Boolean],
-    text: String = "Run"
+    isRunning: Signal[Boolean],
+    isStatusOk: Signal[Boolean],
+    onSave: Observer[Unit],
+    setView: Observer[View],
+    embedded: Boolean = false
   ): HtmlElement =
-    button(
-      cls := "run-button btn-run",
-      onClick.mapTo(()) --> onClick,
-      disabled <-- disabled,
-      text
+    li(
+      role := "button",
+      cls := "btn run-button",
+
+      // Dynamic title based on status
+      title <-- Signal.combine(isRunning, isStatusOk).map {
+        case (running, _) if running =>
+          I18n.t("editor.running_tooltip")
+        case (_, statusOk) if statusOk =>
+          s"${I18n.t("editor.run")} (${EditorKeymaps.saveOrUpdate.getName})"
+        case _ =>
+          s"${I18n.t("editor.run")} (${EditorKeymaps.saveOrUpdate.getName}) - ${I18n.t("editor.status_unknown_warning")}"
+      },
+
+      // Dynamic click handler
+      onClick.compose(_.stopPropagation) --> Observer[Any] { _ =>
+        if isRunning.now() then
+          setView.onNext(View.Editor)
+        else
+          onSave.onNext(())
+      },
+
+      // Dynamic icon and text
+      child <-- isRunning.map { running =>
+        if running then
+          div(
+            i(cls := "fa fa-spinner fa-spin"),
+            span(I18n.t("editor.running"))
+          )
+        else
+          div(
+            i(cls := "fa fa-play"),
+            span(I18n.t("editor.run"))
+          )
+      }
     )
 
   /**
-   * Alternative: Create with static disabled state
+   * Simplified version with separate observers for each state
    */
   def apply(
-    onClick: Observer[Unit],
-    disabled: Boolean,
-    text: String
+    isRunning: Signal[Boolean],
+    isStatusOk: Signal[Boolean],
+    onRun: Observer[Unit],
+    onShowEditor: Observer[Unit]
   ): HtmlElement =
-    button(
-      cls := "run-button btn-run",
-      onClick.mapTo(()) --> onClick,
-      disabled := disabled,
-      text
+    apply(
+      isRunning,
+      isStatusOk,
+      onRun,
+      onShowEditor.contramap(_ => View.Editor),
+      embedded = false
     )
