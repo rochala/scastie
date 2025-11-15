@@ -3,9 +3,11 @@ package org.scastie.client.laminar
 import com.raquo.laminar.api.L.*
 import org.scastie.client.{ScastieState, View}
 import org.scastie.client.laminar.api.ApiClient
+import org.scastie.client.laminar.sse.ScastieEventStream
 import org.scastie.api.*
 import java.util.UUID
 import scala.scalajs.concurrent.JSExecutionContext.Implicits.queue
+import scala.util.{Success, Failure}
 
 /**
  * Extended Scastie store with API integration.
@@ -26,6 +28,61 @@ class ScastieStoreExtended(
   private val snippetSummariesVar = Var[List[SnippetSummary]](List.empty)
   val snippetSummariesSignal: Signal[List[SnippetSummary]] = snippetSummariesVar.signal
 
+  // ===== SSE Stream Management =====
+
+  private var progressStream: Option[ScastieEventStream[SnippetProgress]] = None
+  private var statusStream: Option[ScastieEventStream[StatusProgress]] = None
+
+  private def connectProgressStream(snippetId: SnippetId): Unit =
+    // Close any existing stream
+    progressStream.foreach(_.close())
+
+    val apiBase = serverUrl.getOrElse("")
+    val targetType = if currentState.inputs.target.targetType == ScalaTargetType.ScalaCli then "Scala-CLI" else "sbt"
+
+    ScastieEventStream.connect[SnippetProgress](
+      eventSourceUri = s"$apiBase/api/progress-sse/${snippetId.url}",
+      websocketUri = s"$apiBase/api/progress-ws/${snippetId.url}",
+      onMessage = { progress =>
+        updateState(_.addProgress(progress))
+        progress.isDone // Return true to close stream when done
+      },
+      onOpen = () => (),
+      onError = error => org.scalajs.dom.console.error(s"Progress stream error: $error"),
+      onClose = reason => progressStream = None,
+      onConnectionError = error => org.scalajs.dom.console.error(s"Progress connection error: $error")
+    ) match
+      case Success(stream) =>
+        progressStream = Some(stream)
+      case Failure(error) =>
+        org.scalajs.dom.console.error(s"Failed to connect progress stream: $error")
+        updateState(_.setRunning(false))
+
+  private def connectStatusStream(): Unit =
+    // Close any existing stream
+    statusStream.foreach(_.close())
+
+    val apiBase = serverUrl.getOrElse("")
+
+    ScastieEventStream.connect[StatusProgress](
+      eventSourceUri = s"$apiBase/api/status-sse",
+      websocketUri = s"$apiBase/api/status-ws",
+      onMessage = { status =>
+        status match
+          case StatusProgress.KeepAlive => () // Ignore keep-alive
+          case _ => updateState(_.addStatus(status))
+        false // Don't close on status updates
+      },
+      onOpen = () => (),
+      onError = error => org.scalajs.dom.console.error(s"Status stream error: $error"),
+      onClose = reason => statusStream = None,
+      onConnectionError = error => org.scalajs.dom.console.error(s"Status connection error: $error")
+    ) match
+      case Success(stream) =>
+        statusStream = Some(stream)
+      case Failure(error) =>
+        org.scalajs.dom.console.error(s"Failed to connect status stream: $error")
+
   // ===== API Actions =====
 
   /** Run code action */
@@ -40,10 +97,10 @@ class ScastieStoreExtended(
       updateState(state =>
         state
           .setSnippetId(snippetId)
-          .setRunning(false)
           .setCleanInputs
       )
-      // TODO: Start listening for SSE events
+      // Connect to progress stream for real-time updates
+      connectProgressStream(snippetId)
     }(unsafeWindowOwner)
   }
 
@@ -225,6 +282,19 @@ class ScastieStoreExtended(
 
   val navigateToSnippetObserver: Observer[SnippetId] =
     Observer[SnippetId](id => navigateToSnippet(id))
+
+  // ===== Initialization and Cleanup =====
+
+  /** Initialize status stream for server health monitoring */
+  def initializeStatusStream(): Unit =
+    connectStatusStream()
+
+  /** Cleanup: close all active SSE/WebSocket connections */
+  def cleanup(): Unit =
+    progressStream.foreach(_.close())
+    statusStream.foreach(_.close())
+    progressStream = None
+    statusStream = None
 
 object ScastieStoreExtended:
   /** Create store with UUID */

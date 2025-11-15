@@ -36,6 +36,9 @@ object LaminarApp:
     val initialState = loadInitialState(isEmbedded)
     val store = ScastieStoreExtended(initialState, scastieId, serverUrl)
 
+    // Initialize SSE status stream for server health monitoring
+    store.initializeStatusStream()
+
     // Load snippet if provided
     snippetId.foreach { id =>
       store.loadSnippet(id)
@@ -47,8 +50,14 @@ object LaminarApp:
     else
       None
 
-    // Create the root element
-    val appElement = createAppElement(store, isEmbedded, router)
+    // Create the root element with cleanup
+    val appElement = div(
+      onMountUnmountCallback(
+        mount = _ => (),
+        unmount = _ => store.cleanup() // Clean up SSE streams on unmount
+      ),
+      createAppElement(store, isEmbedded, router)
+    )
 
     // Mount to DOM
     render(containerNode, appElement)
