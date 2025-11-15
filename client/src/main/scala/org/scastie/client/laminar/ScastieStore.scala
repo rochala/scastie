@@ -80,6 +80,10 @@ class ScastieStore(initialState: ScastieState):
   val isResetModalClosedSignal: Signal[Boolean] =
     stateSignal.map(_.modalState.isResetModalClosed)
 
+  /** Share modal snippet ID signal */
+  val shareModalSnippetIdSignal: Signal[Option[SnippetId]] =
+    stateSignal.map(_.modalState.shareModalSnippetId)
+
   // ===== State Update Functions =====
 
   /** Update state with a function */
@@ -186,6 +190,20 @@ class ScastieStore(initialState: ScastieState):
 
   val closeResetModalObserver: Observer[Unit] =
     Observer[Unit](_ => closeResetModal())
+
+  /** Open share modal */
+  def openShareModal(snippetId: Option[SnippetId]): Unit =
+    updateState(_.openShareModal(snippetId))
+
+  val openShareModalObserver: Observer[SnippetId] =
+    Observer[SnippetId](id => openShareModal(Some(id)))
+
+  /** Close share modal */
+  def closeShareModal(): Unit =
+    updateState(_.closeShareModal)
+
+  val closeShareModalObserver: Observer[Unit] =
+    Observer[Unit](_ => closeShareModal())
 
   // ===== Running State Actions =====
 

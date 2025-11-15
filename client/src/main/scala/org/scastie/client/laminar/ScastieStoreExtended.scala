@@ -21,6 +21,11 @@ class ScastieStoreExtended(
 
   private val apiClient = ApiClient(serverUrl)
 
+  // ===== Snippet Management State =====
+
+  private val snippetSummariesVar = Var[List[SnippetSummary]](List.empty)
+  val snippetSummariesSignal: Signal[List[SnippetSummary]] = snippetSummariesVar.signal
+
   // ===== API Actions =====
 
   /** Run code action */
@@ -194,6 +199,32 @@ class ScastieStoreExtended(
 
   val setLanguageObserver: Observer[String] =
     Observer[String](lang => setLanguage(lang))
+
+  /** Load user snippets */
+  def loadUserSnippets(): Unit =
+    apiClient.fetchUserSnippets().foreach { summaries =>
+      snippetSummariesVar.set(summaries)
+    }(unsafeWindowOwner)
+
+  val loadUserSnippetsObserver: Observer[Unit] =
+    Observer[Unit](_ => loadUserSnippets())
+
+  /** Delete snippet */
+  def deleteSnippet(summary: SnippetSummary): Unit =
+    apiClient.delete(summary.snippetId).foreach { _ =>
+      snippetSummariesVar.update(_.filterNot(_ == summary))
+    }(unsafeWindowOwner)
+
+  val deleteSnippetObserver: Observer[SnippetSummary] =
+    Observer[SnippetSummary](summary => deleteSnippet(summary))
+
+  /** Navigate to snippet (load it) */
+  def navigateToSnippet(snippetId: SnippetId): Unit =
+    loadSnippet(snippetId)
+    setView(View.Editor)
+
+  val navigateToSnippetObserver: Observer[SnippetId] =
+    Observer[SnippetId](id => navigateToSnippet(id))
 
 object ScastieStoreExtended:
   /** Create store with UUID */

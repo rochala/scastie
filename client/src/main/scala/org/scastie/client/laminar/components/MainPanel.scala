@@ -155,12 +155,26 @@ object MainPanel:
    * Create code snippets view.
    */
   private def createCodeSnippetsView(store: ScastieStore): HtmlElement =
-    div(
-      cls := "code-snippets-view",
-      h2("Code Snippets"),
-      p("User snippets will be displayed here")
-      // TODO: Implement CodeSnippets component
-    )
+    store match
+      case extended: ScastieStoreExtended =>
+        CodeSnippets(
+          view = extended.viewSignal,
+          user = extended.userSignal,
+          isDarkTheme = extended.isDarkThemeSignal,
+          snippets = extended.snippetSummariesSignal,
+          shareModalSnippetId = extended.shareModalSnippetIdSignal,
+          closeShareModal = extended.closeShareModalObserver,
+          openShareModal = extended.openShareModalObserver,
+          deleteSnippet = extended.deleteSnippetObserver,
+          navigateToSnippet = extended.navigateToSnippetObserver,
+          loadProfile = extended.loadUserSnippetsObserver
+        )
+      case _ =>
+        div(
+          cls := "code-snippets-view",
+          h2("Code Snippets"),
+          p("Code snippets require extended store with API integration")
+        )
 
   /**
    * Create status view.
