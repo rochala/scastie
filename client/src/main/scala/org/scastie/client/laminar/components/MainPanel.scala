@@ -2,7 +2,7 @@ package org.scastie.client.laminar.components
 
 import com.raquo.laminar.api.L.*
 import org.scastie.client.{View, ScastieState}
-import org.scastie.client.laminar.ScastieStore
+import org.scastie.client.laminar.{ScastieStore, ScastieStoreExtended}
 import org.scastie.client.laminar.editor.CodeMirrorEditor
 
 /**
@@ -12,10 +12,26 @@ import org.scastie.client.laminar.editor.CodeMirrorEditor
  */
 object MainPanel:
 
+  // Helper functions to get observers from store
+  private def getRunObserver(store: ScastieStore): Observer[Unit] =
+    store match
+      case extended: ScastieStoreExtended => extended.saveObserver
+      case _ => Observer.empty
+
+  private def getClearObserver(store: ScastieStore): Observer[Unit] =
+    store match
+      case extended: ScastieStoreExtended => extended.clearObserver
+      case _ => Observer.empty
+
+  private def getFormatObserver(store: ScastieStore): Observer[Unit] =
+    store match
+      case extended: ScastieStoreExtended => extended.formatObserver
+      case _ => Observer.empty
+
   /**
    * Create a main panel component.
    *
-   * @param store The Scastie store containing application state
+   * @param store The Scastie store (can be basic or extended)
    * @param isEmbedded Whether this is embedded mode
    * @return Main panel element
    */
@@ -50,9 +66,9 @@ object MainPanel:
         EditorTopBar(
           view = store.viewSignal,
           isRunning = store.isRunningSignal,
-          onRun = Observer.empty, // TODO: Wire to run action
-          onClear = Observer.empty, // TODO: Wire to clear action
-          onFormat = Observer.empty // TODO: Wire to format action
+          onRun = getRunObserver(store),
+          onClear = getClearObserver(store),
+          onFormat = getFormatObserver(store)
         ),
 
         // View-dependent content

@@ -4,11 +4,13 @@ import com.raquo.laminar.api.L.*
 import org.scalajs.dom
 import org.scastie.client.{ScastieState, LocalStorage, View}
 import org.scastie.client.laminar.components.{MainPanel, SideBar, HelpModal, LoginModal, PrivacyPolicyModal}
+import org.scastie.client.laminar.router.ScastieRouter
 import org.scastie.api.*
+import java.util.UUID
 
 /**
  * Main Laminar application entry point.
- * This replaces the React-based Scastie component with a fully functional Laminar app.
+ * This fully replaces the React-based Scastie component.
  */
 object LaminarApp:
 
@@ -18,25 +20,35 @@ object LaminarApp:
    * @param containerNode The DOM node to render into
    * @param isEmbedded Whether this is embedded mode
    * @param snippetId Optional snippet ID to load
+   * @param serverUrl Optional server URL
    */
   def render(
     containerNode: dom.Element,
     isEmbedded: Boolean = false,
-    snippetId: Option[SnippetId] = None
+    snippetId: Option[SnippetId] = None,
+    serverUrl: Option[String] = None
   ): Unit =
 
-    // Initialize the store with appropriate state
+    // Generate Scastie ID
+    val scastieId = UUID.randomUUID()
+
+    // Initialize the extended store with API integration
     val initialState = loadInitialState(isEmbedded)
-    val store = ScastieStore(initialState)
+    val store = ScastieStoreExtended(initialState, scastieId, serverUrl)
 
     // Load snippet if provided
     snippetId.foreach { id =>
-      // TODO: Load snippet via API
-      dom.console.log(s"Loading snippet: $id")
+      store.loadSnippet(id)
     }
 
+    // Create router (only for non-embedded mode)
+    val router = if !isEmbedded then
+      Some(ScastieRouter.create())
+    else
+      None
+
     // Create the root element
-    val appElement = createAppElement(store, isEmbedded)
+    val appElement = createAppElement(store, isEmbedded, router)
 
     // Mount to DOM
     render(containerNode, appElement)
@@ -56,7 +68,7 @@ object LaminarApp:
   /**
    * Set up document title updates based on state
    */
-  private def setupDocumentTitle(store: ScastieStore, isEmbedded: Boolean): Unit =
+  private def setupDocumentTitle(store: ScastieStoreExtended, isEmbedded: Boolean): Unit =
     if !isEmbedded then
       Signal.combine(store.codeSignal, store.inputsHasChangedSignal).foreach {
         case (code, hasChanged) =>
@@ -73,8 +85,9 @@ object LaminarApp:
    * Create the root application element
    */
   private def createAppElement(
-    store: ScastieStore,
-    isEmbedded: Boolean
+    store: ScastieStoreExtended,
+    isEmbedded: Boolean,
+    router: Option[com.raquo.waypoint.Router[org.scastie.client.Page]]
   ): Div =
     div(
       cls := "app scastie-laminar",
@@ -82,9 +95,9 @@ object LaminarApp:
       cls <-- store.isDesktopForcedSignal.map(forced => if forced then "force-desktop" else ""),
       cls <-- store.isPresentationModeSignal.map(pres => if pres then "presentation-mode" else ""),
 
-      // Sidebar (not shown in embedded mode)
-      child <-- Val(!isEmbedded).map { showSidebar =>
-        if showSidebar then
+      // Sidebar (not shown in embedded mode or presentation mode)
+      child <-- Signal.combine(Val(!isEmbedded), store.isPresentationModeSignal).map {
+        case (showSidebar, presentationMode) if showSidebar && !presentationMode =>
           SideBar(
             view = store.viewSignal,
             setView = store.setViewObserver,
@@ -102,11 +115,11 @@ object LaminarApp:
             onOpenHelp = Observer[Unit](_ => store.openHelpModal()),
             onOpenPrivacyPolicy = Observer[Unit](_ => store.openPrivacyPolicyModal())
           )
-        else
+        case _ =>
           emptyNode
       },
 
-      // Main panel with editor and views
+      // Main panel with editor and views (now uses extended store)
       MainPanel(store, isEmbedded),
 
       // Modals
@@ -128,8 +141,6 @@ object LaminarApp:
         isClosed = store.modalStateSignal.map(_.isPrivacyPolicyModalClosed),
         onClose = store.closePrivacyPolicyModalObserver
       )
-
-      // TODO: Add remaining modals (Embedded, NewSnippet, Reset, Share)
     )
 
   /**
