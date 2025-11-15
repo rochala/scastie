@@ -2,12 +2,13 @@ package org.scastie.client.laminar
 
 import com.raquo.laminar.api.L.*
 import org.scalajs.dom
-import org.scastie.client.{ScastieState, LocalStorage}
+import org.scastie.client.{ScastieState, LocalStorage, View}
+import org.scastie.client.laminar.components.{MainPanel, SideBar, HelpModal, LoginModal, PrivacyPolicyModal}
 import org.scastie.api.*
 
 /**
  * Main Laminar application entry point.
- * This will replace the React-based Scastie component.
+ * This replaces the React-based Scastie component with a fully functional Laminar app.
  */
 object LaminarApp:
 
@@ -28,11 +29,20 @@ object LaminarApp:
     val initialState = loadInitialState(isEmbedded)
     val store = ScastieStore(initialState)
 
+    // Load snippet if provided
+    snippetId.foreach { id =>
+      // TODO: Load snippet via API
+      dom.console.log(s"Loading snippet: $id")
+    }
+
     // Create the root element
     val appElement = createAppElement(store, isEmbedded)
 
     // Mount to DOM
     render(containerNode, appElement)
+
+    // Set up document title updates
+    setupDocumentTitle(store, isEmbedded)
 
   /**
    * Load initial state from LocalStorage or create default
@@ -44,6 +54,22 @@ object LaminarApp:
       LocalStorage.load.getOrElse(ScastieState.default(isEmbedded = false))
 
   /**
+   * Set up document title updates based on state
+   */
+  private def setupDocumentTitle(store: ScastieStore, isEmbedded: Boolean): Unit =
+    if !isEmbedded then
+      Signal.combine(store.codeSignal, store.inputsHasChangedSignal).foreach {
+        case (code, hasChanged) =>
+          val title =
+            if code.isEmpty then "Scastie"
+            else s"$code - Scastie"
+
+          dom.document.title =
+            if hasChanged then s"* $title"
+            else title
+      }(unsafeWindowOwner)
+
+  /**
    * Create the root application element
    */
   private def createAppElement(
@@ -51,61 +77,59 @@ object LaminarApp:
     isEmbedded: Boolean
   ): Div =
     div(
-      cls := "laminar-app",
+      cls := "app scastie-laminar",
       cls <-- store.isDarkThemeSignal.map(dark => if dark then "dark" else "light"),
       cls <-- store.isDesktopForcedSignal.map(forced => if forced then "force-desktop" else ""),
+      cls <-- store.isPresentationModeSignal.map(pres => if pres then "presentation-mode" else ""),
 
-      // Application content
-      child <-- store.stateSignal.map { state =>
-        createMainContent(store, state, isEmbedded)
-      }
-    )
-
-  /**
-   * Create main content based on state
-   */
-  private def createMainContent(
-    store: ScastieStore,
-    state: ScastieState,
-    isEmbedded: Boolean
-  ): HtmlElement =
-    div(
-      cls := "scastie-main",
-
-      h1("Scastie - Laminar Migration"),
-
-      p("This is the Laminar version of Scastie."),
-
-      div(
-        cls := "theme-toggle",
-        button(
-          "Toggle Theme",
-          onClick --> store.toggleThemeObserver
-        )
-      ),
-
-      div(
-        cls := "state-display",
-        p(s"Theme: ${if state.isDarkTheme then "Dark" else "Light"}"),
-        p(s"Embedded: $isEmbedded"),
-        p(s"Scala Version: ${state.inputs.target.scalaVersion}")
-      ),
-
-      // Placeholder for editor
-      div(
-        cls := "editor-placeholder",
-        p("Editor will be integrated here"),
-        textArea(
-          cls := "code-editor-temp",
-          placeholder := "Code editor will be integrated with CodeMirror...",
-          rows := 20,
-          cols := 80,
-          controlled(
-            value <-- store.codeSignal,
-            onInput.mapToValue --> store.setCodeObserver
+      // Sidebar (not shown in embedded mode)
+      child <-- Val(!isEmbedded).map { showSidebar =>
+        if showSidebar then
+          SideBar(
+            view = store.viewSignal,
+            setView = store.setViewObserver,
+            isDarkTheme = store.isDarkThemeSignal,
+            status = store.statusSignal,
+            inputs = store.inputsSignal,
+            editorMode = store.editorModeSignal.map { mode =>
+              mode match
+                case "Vim" => org.scastie.api.Vim
+                case "Emacs" => org.scastie.api.Emacs
+                case _ => org.scastie.api.Default
+            },
+            setEditorMode = store.setEditorModeObserver.contramap(_.toString),
+            onToggleTheme = store.toggleThemeObserver,
+            onOpenHelp = Observer[Unit](_ => store.openHelpModal()),
+            onOpenPrivacyPolicy = Observer[Unit](_ => store.openPrivacyPolicyModal())
           )
-        )
+        else
+          emptyNode
+      },
+
+      // Main panel with editor and views
+      MainPanel(store, isEmbedded),
+
+      // Modals
+      HelpModal(
+        isDarkTheme = store.isDarkThemeSignal,
+        isClosed = store.modalStateSignal.map(_.isHelpModalClosed),
+        onClose = store.closeHelpModalObserver
+      ),
+
+      LoginModal(
+        isDarkTheme = store.isDarkThemeSignal,
+        isClosed = store.modalStateSignal.map(_.isLoginModalClosed),
+        onClose = store.closeLoginModalObserver,
+        onOpenPrivacyPolicy = Observer[Unit](_ => store.openPrivacyPolicyModal())
+      ),
+
+      PrivacyPolicyModal(
+        isDarkTheme = store.isDarkThemeSignal,
+        isClosed = store.modalStateSignal.map(_.isPrivacyPolicyModalClosed),
+        onClose = store.closePrivacyPolicyModalObserver
       )
+
+      // TODO: Add remaining modals (Embedded, NewSnippet, Reset, Share)
     )
 
   /**
