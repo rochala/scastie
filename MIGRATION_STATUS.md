@@ -4,7 +4,7 @@
 
 This document tracks the migration of Scastie from React (scalajs-react) to Laminar with Scala 3.3.6.
 
-**Current Status: ~90% Complete**
+**Current Status: ~95% Complete**
 
 ## Migration Phases Completed
 
@@ -98,7 +98,38 @@ This document tracks the migration of Scastie from React (scalajs-react) to Lami
 - Navigate to snippets
 - Auto-load on view change
 
-## Components Migrated (28 total)
+### Phase 6: SSE Integration for Real-Time Updates ✅ (Commit: 835d56e)
+- Implemented complete SSE/WebSocket connectivity
+- Integrated real-time output streaming during execution
+- Added server health monitoring
+
+**New Module:**
+- ScastieEventStream (200 lines)
+  * EventSourceStream: Server-Sent Events implementation
+  * WebSocketStream: WebSocket fallback
+  * Automatic failover mechanism
+  * Airstream integration
+
+**Store Enhancements:**
+- Added to ScastieStoreExtended:
+  * Progress stream management
+  * Status stream management
+  * connectProgressStream()
+  * connectStatusStream()
+  * initializeStatusStream()
+  * cleanup()
+
+**Features Implemented:**
+- Real-time compilation output streaming
+- Runtime output display as it happens
+- Build output streaming
+- Compilation error display in real-time
+- Progress indicators during execution
+- Server status monitoring
+- Automatic reconnection handling
+- Memory leak prevention via cleanup
+
+## Components Migrated (29 total)
 
 ### Buttons (6)
 - ✅ RunButton
@@ -136,11 +167,12 @@ This document tracks the migration of Scastie from React (scalajs-react) to Lami
 ### Editor (1)
 - ✅ CodeMirrorEditor (facade)
 
-### Other (4)
+### Infrastructure (5)
 - ✅ CodeSnippets
 - ✅ LaminarApp
 - ✅ ScastieRouter
 - ✅ ApiClient
+- ✅ ScastieEventStream (SSE/WebSocket)
 
 ## Architecture
 
@@ -180,10 +212,10 @@ object MyComponent:
 
 ## Code Metrics
 
-**Total Lines of Laminar Code:** ~4,800+
-**Files Created:** 32
-**Components Migrated:** 28
-**Commits:** 5 (across 5 phases)
+**Total Lines of Laminar Code:** ~5,100+
+**Files Created:** 33
+**Components Migrated:** 29
+**Commits:** 6 (across 6 phases)
 
 ## Feature Completeness
 
@@ -198,13 +230,15 @@ object MyComponent:
 - Modal dialogs (Help, Login, Privacy Policy, Prompts)
 - SBT configuration editing
 - Share/delete snippets
+- **SSE/WebSocket real-time updates**
+- **Real-time compilation output streaming**
+- **Runtime output display**
+- **Server status monitoring**
 
 ### 🚧 Partially Implemented
 - CodeMirror integration (using facade, needs proper bindings)
-- Console output display (component exists, needs SSE integration)
 
 ### ❌ Not Yet Implemented
-- SSE (Server-Sent Events) for real-time output streaming
 - MetalsStatusIndicator component
 - Full CodeMirror ScalablyTyped bindings
 - Browser testing (requires build environment)
@@ -213,31 +247,28 @@ object MyComponent:
 ## Remaining Work
 
 ### High Priority
-1. **SSE Integration** (~200 lines)
-   - Real-time output streaming from backend
-   - Progress updates during compilation
-   - Runtime output display
-
-2. **Browser Testing**
+1. **Browser Testing**
    - Requires `sbt client/fastLinkJS`
    - Manual testing in browser
-   - Fix any runtime issues
+   - Verify SSE connections work correctly
+   - Test all user flows end-to-end
 
 ### Medium Priority
-3. **CodeMirror Proper Bindings**
+2. **CodeMirror Proper Bindings**
    - Replace facade with ScalablyTyped bindings
    - Full type safety
    - Better IDE support
 
-4. **MetalsStatusIndicator** (~50 lines)
+3. **MetalsStatusIndicator** (~50 lines)
    - LSP status display
    - Nice-to-have feature
 
 ### Low Priority
-5. **Final Cleanup**
+4. **Final Cleanup**
    - Remove React dependencies from build.sbt
    - Clean up old React components
    - Update documentation
+   - Performance profiling
 
 ## Testing Status
 
@@ -282,19 +313,32 @@ object MyComponent:
 ## Next Steps
 
 1. ✅ Complete Phase 5 (User Snippet Management)
-2. 🔄 Implement SSE integration
-3. ⏳ Browser testing
+2. ✅ Implement SSE integration
+3. 🔄 Browser testing
 4. ⏳ MetalsStatusIndicator migration
 5. ⏳ CodeMirror proper bindings
 6. ⏳ Final cleanup and React removal
 
 ## Conclusion
 
-The Scastie Laminar migration is ~90% complete with all core user-facing features successfully migrated. The remaining work is primarily:
-- SSE integration for real-time updates
+The Scastie Laminar migration is **~95% complete** with all core user-facing features successfully migrated, including real-time SSE output streaming.
+
+**Completed Work:**
+- ✅ All major UI components (29 components)
+- ✅ Complete state management with Airstream
+- ✅ Full API integration
+- ✅ Routing with Waypoint
+- ✅ Real-time SSE/WebSocket streaming
+- ✅ All modal dialogs
+- ✅ Build configuration UI
+- ✅ User snippet management
+
+**Remaining Work:**
 - Browser testing to verify runtime behavior
-- Final polish and cleanup
+- MetalsStatusIndicator component (~50 lines)
+- CodeMirror proper bindings (nice-to-have)
+- Final cleanup and React dependency removal
 
-The migration has been smooth with no major blockers. The Laminar reactive architecture provides better type safety, simpler state management, and improved performance compared to the React-based implementation.
+The migration has been smooth with no major blockers. The Laminar reactive architecture provides better type safety, simpler state management, improved performance, and cleaner separation of concerns compared to the React-based implementation.
 
-**Estimated Completion:** 1-2 additional development sessions for SSE integration and browser testing.
+**Estimated Completion:** 1 additional development session for browser testing and final polish.
